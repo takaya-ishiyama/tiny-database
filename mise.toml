@@ -1,2 +1,17 @@
+[tools]
+rust = "stable"
+
+[env]
+RUST_BACKTRACE = "1"
+
 [tasks.check]
 run = "cargo check --workspace"
+
+[tasks.test]
+run = "cargo test --workspace"
+
+[tasks.fmt]
+run = "cargo fmt --all --check"
+
+[tasks.clippy]
+run = "cargo clippy --workspace --all-targets -- -D warnings"
