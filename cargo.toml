@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+    "index",
+    "storage",
+    "transaction",
+    "cli"
+]
