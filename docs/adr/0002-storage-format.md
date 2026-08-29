@@ -2,7 +2,8 @@
 Little-endian
 
 ## ページサイズ
-未解決事項
+4 KiB
 
 ## 最大key/valueサイズ
-未解決事項
+key: 1 KiB
+value: 1 MiB
