@@ -380,6 +380,86 @@
         align-items: stretch;
       }
 
+      .current-grid {
+        display: grid;
+        grid-template-columns: 0.82fr 1.18fr;
+        gap: 16px;
+      }
+
+      .current-card {
+        padding: 28px;
+      }
+
+      .status-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .status-badge {
+        border: 1px solid rgba(255, 184, 107, 0.34);
+        border-radius: 999px;
+        padding: 5px 11px;
+        background: rgba(255, 184, 107, 0.1);
+        color: var(--orange);
+        font: 700 0.72rem/1.3 "SFMono-Regular", Consolas, monospace;
+      }
+
+      .current-card h3 {
+        margin-bottom: 10px;
+      }
+
+      .current-card p {
+        color: var(--muted);
+      }
+
+      .file-map {
+        display: grid;
+        margin: 0;
+        gap: 10px;
+      }
+
+      .file-map div {
+        display: grid;
+        grid-template-columns: minmax(150px, 0.7fr) 1.3fr;
+        gap: 16px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .file-map div:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+      }
+
+      .file-map dt,
+      .file-map dd {
+        margin: 0;
+      }
+
+      .file-map dd {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .next-order {
+        margin: 18px 0 0;
+        padding-left: 22px;
+        color: #cbd2ce;
+      }
+
+      .next-order li {
+        margin-bottom: 8px;
+        padding-left: 5px;
+      }
+
+      .next-order li::marker {
+        color: var(--lime);
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-weight: 800;
+      }
+
       .layer {
         position: relative;
         min-height: 126px;
@@ -707,7 +787,8 @@
       @media (max-width: 850px) {
         .hero,
         .section-head,
-        .start-grid {
+        .start-grid,
+        .current-grid {
           grid-template-columns: 1fr;
         }
 
@@ -786,6 +867,11 @@
           padding: 28px 22px;
         }
 
+        .file-map div {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+
         footer {
           flex-direction: column;
         }
@@ -800,6 +886,7 @@
           tiny-database
         </a>
         <div class="nav-links">
+          <a href="#current">Current</a>
           <a href="#scope">Scope</a>
           <a href="#architecture">Architecture</a>
           <a href="#roadmap">Roadmap</a>
@@ -866,6 +953,43 @@ hits=18 misses=3 depth=2</pre>
               <span class="number">03</span>
               <h3>Measure, then optimize</h3>
               <p>I/O回数、キャッシュヒット率、木の高さを計測してから最適化する。勘だけで速くしない。</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="current" aria-labelledby="current-title">
+          <div class="section-head">
+            <h2 id="current-title">このプロジェクトの現在地</h2>
+            <p>
+              いまはPhase 00の土台がほぼ揃い、Phase 01の最初にいる。crateを増やす段階ではなく、
+              まず1件のレコードを正しくバイト列へ変換し、元へ戻せるようにする段階。
+            </p>
+          </div>
+          <div class="current-grid">
+            <article class="card current-card">
+              <div class="status-line">
+                <span class="status-badge">NOW · PHASE 01</span>
+              </div>
+              <h3>次の一本道</h3>
+              <p>以下を上から順に進めれば、最初の「再起動しても消えないKVストア」まで到達する。</p>
+              <ol class="next-order">
+                <li><code>Record::encode / decode</code> と境界値テスト</li>
+                <li>レコードをファイル末尾へ追記するログ</li>
+                <li>起動時に全レコードを読み、key → offset を復元</li>
+                <li><code>put / get / delete</code> を公開APIにまとめる</li>
+                <li>再起動・末尾切断・checksum破損テスト</li>
+              </ol>
+            </article>
+            <article class="card current-card">
+              <h3>既存ファイルの役割</h3>
+              <dl class="file-map">
+                <div><dt><code>storage/src/record.rs</code></dt><dd>現在の主作業場所。Recordの形はあるが、encode / decodeは未実装。</dd></div>
+                <div><dt><code>storage/src/error.rs</code></dt><dd>I/O、サイズ超過、切断、checksum不一致などのエラー型は実装済み。</dd></div>
+                <div><dt><code>storage/tests/</code></dt><dd>公開APIのプロパティテストとクラッシュ復旧テストの置き場。現在は空。</dd></div>
+                <div><dt><code>index</code></dt><dd>Phase 04でB+Treeを実装するcrate。今は触らなくてよい。</dd></div>
+                <div><dt><code>transaction</code></dt><dd>Phase 07のcommit / rollback・排他制御。storage完成後に進む。</dd></div>
+                <div><dt><code>cli</code></dt><dd>Phase 08で公開APIを人が操作する入口にする。最後につなぐ。</dd></div>
+              </dl>
             </article>
           </div>
         </section>

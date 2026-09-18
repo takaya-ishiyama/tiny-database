@@ -22,3 +22,20 @@ impl Record {
     //
     // };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn put_record_round_trips() {}
+
+    #[test]
+    fn tombstone_round_trips() {}
+
+    #[test]
+    fn rejects_checksum_mismatch() {}
+
+    #[test]
+    fn rejects_oversized_value() {}
+}
