@@ -60,7 +60,7 @@ mod tests {
 
         assert_eq!(decoded.key, b"name");
         assert_eq!(decoded.value, b"Taro");
-        // assert!(!decoded.tombstone);
+        assert!(!decoded.tombstone);
     }
 
     #[test]
