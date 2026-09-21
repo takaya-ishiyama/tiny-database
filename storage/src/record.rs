@@ -1,10 +1,15 @@
 use crate::{Error, Result};
+use crc32fast::hash;
 
 pub(crate) struct Record {
     pub key: Vec<u8>,
     pub value: Vec<u8>,
     pub tombstone: bool,
 }
+
+const HEADER_SIZE: usize = 13;
+const MAX_KEY_SIZE: usize = 1024;
+const MAX_VALUE_SIZE: usize = 1024 * 1024;
 
 impl Record {
     pub fn new(key: Vec<u8>, value: Vec<u8>, tombstone: bool) -> Self {
@@ -21,19 +26,23 @@ impl Record {
         let key_len = self.key.len() as u32;
         let value_len = self.value.len() as u32;
 
-        let mut bytes = Vec::new();
+        let mut body = Vec::new();
 
-        bytes.extend_from_slice(&key_len.to_le_bytes());
-        bytes.extend_from_slice(&value_len.to_le_bytes());
-        bytes.push(u8::from(self.tombstone));
-        bytes.extend_from_slice(&self.key);
-        bytes.extend_from_slice(&self.value);
+        body.extend_from_slice(&key_len.to_le_bytes());
+        body.extend_from_slice(&value_len.to_le_bytes());
+        body.push(u8::from(self.tombstone));
+        body.extend_from_slice(&self.key);
+        body.extend_from_slice(&self.value);
+
+        let checksum = hash(&body);
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&checksum.to_le_bytes());
+        bytes.extend_from_slice(&body);
 
         Ok(bytes)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self> {
-        const HEADER_SIZE: usize = 9;
-
         if bytes.len() < HEADER_SIZE {
             return Err(Error::TruncatedRecord {
                 expected: HEADER_SIZE,
@@ -41,10 +50,19 @@ impl Record {
             });
         }
 
-        let key_len = u32::from_le_bytes(bytes[0..4].try_into().unwrap()) as usize;
+        // チェックサムの検証
+        let expected_checksum = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+        let actual_checksum = hash(&bytes[4..]);
+        if expected_checksum != actual_checksum {
+            return Err(Error::ChecksumMismatch {
+                expected: expected_checksum,
+                actual: actual_checksum,
+            });
+        }
 
-        let value_len = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
-
+        // key_lenとvalue_lenを取得
+        let key_len = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
+        let value_len = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
         let expected_size = HEADER_SIZE + key_len + value_len;
         if bytes.len() < expected_size {
             return Err(Error::TruncatedRecord {
@@ -53,15 +71,23 @@ impl Record {
             });
         }
 
-        let tombstone = match bytes[8] {
+        let tombstone = match bytes[12] {
             0 => false,
             1 => true,
             value => return Err(Error::InvalidTombstone(value)),
         };
 
-        let key_start = 9;
+        let key_start = HEADER_SIZE;
         let key_end = key_start + key_len;
         let value_end = key_end + value_len;
+
+        // keyとvalueの範囲をチェック
+        if bytes.len() < value_end {
+            return Err(Error::TruncatedRecord {
+                expected: value_end,
+                actual: bytes.len(),
+            });
+        }
 
         let key = bytes[key_start..key_end].to_vec();
         let value = bytes[key_end..value_end].to_vec();
@@ -70,9 +96,6 @@ impl Record {
     }
 
     fn check_max_size(&self) -> Result<()> {
-        const MAX_KEY_SIZE: usize = 1024;
-        const MAX_VALUE_SIZE: usize = 1024 * 1024;
-
         if self.key.len() > MAX_KEY_SIZE {
             return Err(Error::KeyTooLarge {
                 actual: self.key.len(),
