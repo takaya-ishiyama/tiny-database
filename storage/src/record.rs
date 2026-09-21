@@ -159,7 +159,12 @@ mod tests {
         let mut bytes = record.encode().unwrap();
 
         // tombstoneが入っている9番目のバイトを不正な値に書き換える
-        bytes[8] = 2;
+        bytes[12] = 2;
+
+        // encodeで計算されたチェックサムを再計算して書き換える
+        let checksum = hash(&bytes[4..]);
+        bytes[0..4].copy_from_slice(&checksum.to_le_bytes());
+
         let result = Record::decode(&bytes);
         assert!(matches!(result, Err(Error::InvalidTombstone(2))));
     }
@@ -180,12 +185,12 @@ mod tests {
     }
 
     #[test]
-    fn rejects_trancated_record() {
+    fn rejects_truncated_record() {
         let result = Record::decode(&[]);
         assert!(matches!(
             result,
             Err(Error::TruncatedRecord {
-                expected: 9,
+                expected: 13,
                 actual: 0
             })
         ))
