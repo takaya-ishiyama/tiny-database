@@ -53,7 +53,11 @@ impl Record {
             });
         }
 
-        let tombstone = bytes[8] != 0;
+        let tombstone = match bytes[8] {
+            0 => false,
+            1 => true,
+            value => return Err(Error::InvalidTombstone(value)),
+        };
 
         let key_start = 9;
         let key_end = key_start + key_len;
@@ -114,7 +118,15 @@ mod tests {
     }
 
     #[test]
-    fn rejects_checksum_mismatch() {}
+    fn rejects_checksum_mismatch() {
+        let record = Record::new(b"name".to_vec(), b"Taro".to_vec(), false);
+        let mut bytes = record.encode().unwrap();
+
+        // tombstoneが入っている9番目のバイトを不正な値に書き換える
+        bytes[8] = 2;
+        let result = Record::decode(&bytes);
+        assert!(matches!(result, Err(Error::InvalidTombstone(2))));
+    }
 
     #[test]
     fn rejects_oversized_value() {
