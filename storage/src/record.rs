@@ -195,4 +195,20 @@ mod tests {
             })
         ))
     }
+
+    #[test]
+    fn refects_oversized_key() {
+        let oversized_key = vec![0u8; MAX_KEY_SIZE + 1]; // 1025 bytes
+
+        let record = Record::new(oversized_key, b"value".to_vec(), false);
+        let result = record.encode();
+
+        assert!(matches!(
+            result,
+            Err(Error::KeyTooLarge {
+                actual: 1025,
+                max: 1024
+            })
+        ));
+    }
 }
