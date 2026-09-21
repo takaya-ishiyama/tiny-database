@@ -118,7 +118,17 @@ mod tests {
     }
 
     #[test]
-    fn rejects_checksum_mismatch() {}
+    fn rejects_checksum_mismatch() {
+        let record = Record::new(b"name".to_vec(), b"Taro".to_vec(), false);
+        let mut bytes = record.encode().unwrap();
+
+        // valueの最後の1バイトを意図的に壊す
+        let last = bytes.len() - 1;
+        bytes[last] ^= 0xFF;
+
+        let result = Record::decode(&bytes);
+        assert!(matches!(result, Err(Error::ChecksumMismatch { .. })));
+    }
 
     #[test]
     fn rejects_check_invalid_tombstone() {
