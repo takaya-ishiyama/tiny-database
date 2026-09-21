@@ -45,6 +45,14 @@ impl Record {
 
         let value_len = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
 
+        let expected_size = HEADER_SIZE + key_len + value_len;
+        if bytes.len() < expected_size {
+            return Err(Error::TruncatedRecord {
+                expected: expected_size,
+                actual: bytes.len(),
+            });
+        }
+
         let tombstone = bytes[8] != 0;
 
         let key_start = 9;
