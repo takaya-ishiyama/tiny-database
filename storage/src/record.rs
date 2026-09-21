@@ -16,6 +16,8 @@ impl Record {
     }
 
     pub fn encode(&self) -> Result<Vec<u8>> {
+        self.check_size()?;
+
         let key_len = self.key.len() as u32;
         let value_len = self.value.len() as u32;
 
@@ -44,6 +46,26 @@ impl Record {
         let value = bytes[key_end..value_end].to_vec();
 
         Ok(Self::new(key, value, tombstone))
+    }
+
+    fn check_size(&self) -> Result<()> {
+        const MAX_KEY_SIZE: usize = 1024;
+        const MAX_VALUE_SIZE: usize = 1024 * 1024;
+
+        if self.key.len() > MAX_KEY_SIZE {
+            return Err(Error::KeyTooLarge {
+                actual: self.key.len(),
+                max: MAX_KEY_SIZE,
+            });
+        }
+
+        if self.value.len() > MAX_VALUE_SIZE {
+            return Err(Error::ValueTooLarge {
+                actual: self.value.len(),
+                max: MAX_VALUE_SIZE,
+            });
+        }
+        Ok(())
     }
 }
 
@@ -78,5 +100,17 @@ mod tests {
     fn rejects_checksum_mismatch() {}
 
     #[test]
-    fn rejects_oversized_value() {}
+    fn rejects_oversized_value() {
+        let orversized_value = vec![0u8; 1024 * 1024 * 10]; // 10 MB
+
+        let record = Record::new(b"key".to_vec(), orversized_value, false);
+        let result = record.encode();
+        assert!(matches!(
+            result,
+            Err(Error::ValueTooLarge {
+                actual: 10_485_760,
+                max: 1_048_576
+            })
+        ));
+    }
 }
