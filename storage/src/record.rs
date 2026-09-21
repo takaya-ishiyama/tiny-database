@@ -64,7 +64,15 @@ mod tests {
     }
 
     #[test]
-    fn tombstone_round_trips() {}
+    fn tombstone_round_trips() {
+        let original = Record::new(b"name".to_vec(), Vec::new(), true);
+        let bytes = original.encode().unwrap();
+        let decoded = Record::decode(&bytes).unwrap();
+
+        assert_eq!(decoded.key, b"name");
+        assert!(decoded.value.is_empty());
+        assert!(decoded.tombstone);
+    }
 
     #[test]
     fn rejects_checksum_mismatch() {}
