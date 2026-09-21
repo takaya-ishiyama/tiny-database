@@ -16,7 +16,7 @@ impl Record {
     }
 
     pub fn encode(&self) -> Result<Vec<u8>> {
-        self.check_size()?;
+        self.check_max_size()?;
 
         let key_len = self.key.len() as u32;
         let value_len = self.value.len() as u32;
@@ -32,6 +32,15 @@ impl Record {
         Ok(bytes)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self> {
+        const HEADER_SIZE: usize = 9;
+
+        if bytes.len() < HEADER_SIZE {
+            return Err(Error::TruncatedRecord {
+                expected: HEADER_SIZE,
+                actual: bytes.len(),
+            });
+        }
+
         let key_len = u32::from_le_bytes(bytes[0..4].try_into().unwrap()) as usize;
 
         let value_len = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
@@ -48,7 +57,7 @@ impl Record {
         Ok(Self::new(key, value, tombstone))
     }
 
-    fn check_size(&self) -> Result<()> {
+    fn check_max_size(&self) -> Result<()> {
         const MAX_KEY_SIZE: usize = 1024;
         const MAX_VALUE_SIZE: usize = 1024 * 1024;
 
@@ -112,5 +121,17 @@ mod tests {
                 max: 1_048_576
             })
         ));
+    }
+
+    #[test]
+    fn rejects_trancated_record() {
+        let result = Record::decode(&[]);
+        assert!(matches!(
+            result,
+            Err(Error::TruncatedRecord {
+                expected: 9,
+                actual: 0
+            })
+        ))
     }
 }
