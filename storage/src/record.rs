@@ -118,7 +118,10 @@ mod tests {
     }
 
     #[test]
-    fn rejects_checksum_mismatch() {
+    fn rejects_checksum_mismatch() {}
+
+    #[test]
+    fn rejects_check_invalid_tombstone() {
         let record = Record::new(b"name".to_vec(), b"Taro".to_vec(), false);
         let mut bytes = record.encode().unwrap();
 
