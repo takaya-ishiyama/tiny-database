@@ -30,7 +30,14 @@ name = "storage"
 version = "0.1.0"
 dependencies = [
  "crc32fast",
+ "tmpfile",
 ]
+
+[[package]]
+name = "tmpfile"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eec890e9c2b3a5a55c9519925c1ebecbaa5a210549c9c61345633c1e0456f0c6"
 
 [[package]]
 name = "transaction"
