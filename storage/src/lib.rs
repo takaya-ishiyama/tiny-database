@@ -1,4 +1,5 @@
 mod error;
+mod log;
 pub mod record;
 
 pub use error::{Error, Result};
