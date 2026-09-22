@@ -7,4 +7,4 @@ edition = "2024"
 crc32fast = "1.5.2"
 
 [dev-dependencies]
-tmpfile = "0.1.0"
+tempfile = "3.27.0"
