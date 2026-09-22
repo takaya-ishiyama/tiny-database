@@ -44,20 +44,11 @@ impl Record {
         Ok(bytes)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self> {
+        // 固定ヘッダーのサイズをチェック
         if bytes.len() < HEADER_SIZE {
             return Err(Error::TruncatedRecord {
                 expected: HEADER_SIZE,
                 actual: bytes.len(),
-            });
-        }
-
-        // チェックサムの検証
-        let expected_checksum = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
-        let actual_checksum = hash(&bytes[4..]);
-        if expected_checksum != actual_checksum {
-            return Err(Error::ChecksumMismatch {
-                expected: expected_checksum,
-                actual: actual_checksum,
             });
         }
 
@@ -72,6 +63,16 @@ impl Record {
             return Err(Error::TruncatedRecord {
                 expected: expected_size,
                 actual: bytes.len(),
+            });
+        }
+
+        // チェックサムの検証
+        let expected_checksum = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+        let actual_checksum = hash(&bytes[4..]);
+        if expected_checksum != actual_checksum {
+            return Err(Error::ChecksumMismatch {
+                expected: expected_checksum,
+                actual: actual_checksum,
             });
         }
 
