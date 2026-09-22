@@ -52,4 +52,26 @@ mod tests {
 
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn appends_multiple_records_in_order() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        let first = Record::new(b"name".to_vec(), b"Taro".to_vec(), false);
+
+        let second = Record::new(b"city".to_vec(), b"Tokyo".to_vec(), false);
+
+        let mut expected = first.encode().unwrap();
+        expected.extend_from_slice(&second.encode().unwrap());
+
+        let mut log = Log::open(&path).unwrap();
+        log.append(&first).unwrap();
+        log.append(&second).unwrap();
+        drop(log);
+
+        let actual = fs::read(&path).unwrap();
+
+        assert_eq!(actual, expected);
+    }
 }
