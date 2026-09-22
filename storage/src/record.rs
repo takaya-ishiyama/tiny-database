@@ -1,6 +1,7 @@
 use crate::{Error, Result};
 use crc32fast::hash;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Record {
     pub key: Vec<u8>,
     pub value: Vec<u8>,
@@ -241,5 +242,21 @@ mod tests {
                 max: 1024,
             })
         ));
+    }
+
+    #[test]
+    fn refects_record_truncated_at_every_position() {
+        let record = Record::new(b"key".to_vec(), b"value".to_vec(), false);
+        let bytes = record.encode().unwrap();
+
+        for cut_position in 0..bytes.len() {
+            let truncated = &bytes[..cut_position];
+            let result = Record::decode(truncated);
+
+            assert!(
+                matches!(result, Err(Error::TruncatedRecord { .. })),
+                "cut_position={cut_position}, result={result:?}"
+            );
+        }
     }
 }
