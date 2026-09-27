@@ -44,13 +44,7 @@ impl Record {
         Ok(bytes)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self> {
-        // 固定ヘッダーのサイズをチェック
-        if bytes.len() < HEADER_SIZE {
-            return Err(Error::TruncatedRecord {
-                expected: HEADER_SIZE,
-                actual: bytes.len(),
-            });
-        }
+        let expected_size = Self::encoded_len(bytes)?;
 
         // key_lenとvalue_lenを取得
         let key_len = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
@@ -68,7 +62,7 @@ impl Record {
 
         // チェックサムの検証
         let expected_checksum = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
-        let actual_checksum = hash(&bytes[4..]);
+        let actual_checksum = hash(&bytes[4..expected_size]);
         if expected_checksum != actual_checksum {
             return Err(Error::ChecksumMismatch {
                 expected: expected_checksum,
@@ -98,6 +92,31 @@ impl Record {
         let value = bytes[key_end..value_end].to_vec();
 
         Ok(Self::new(key, value, tombstone))
+    }
+
+    pub(crate) fn encoded_len(bytes: &[u8]) -> Result<usize> {
+        if bytes.len() < HEADER_SIZE {
+            return Err(Error::TruncatedRecord {
+                expected: HEADER_SIZE,
+                actual: bytes.len(),
+            });
+        }
+
+        let key_len = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
+        let value_len = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
+
+        Self::check_sizes(key_len, value_len)?;
+
+        let expected_size = HEADER_SIZE + key_len + value_len;
+
+        if bytes.len() < expected_size {
+            return Err(Error::TruncatedRecord {
+                expected: expected_size,
+                actual: bytes.len(),
+            });
+        }
+
+        Ok(expected_size)
     }
 
     fn check_sizes(key_len: usize, value_len: usize) -> Result<()> {
