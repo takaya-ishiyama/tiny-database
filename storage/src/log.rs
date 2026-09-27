@@ -113,4 +113,25 @@ mod tests {
 
         assert_eq!(records, vec![first, second]);
     }
+
+    #[test]
+    fn scans_records_after_reopening_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        let first = Record::new(b"name".to_vec(), b"Taro".to_vec(), false);
+
+        let second = Record::new(b"city".to_vec(), b"Tokyo".to_vec(), false);
+
+        {
+            let mut log = Log::open(&path).unwrap();
+            log.append(&first).unwrap();
+            log.append(&second).unwrap();
+        } // ここでlogがdropされ、ファイルが閉じられる
+
+        let mut reopened_log = Log::open(&path).unwrap();
+        let records = reopened_log.scan().unwrap();
+
+        assert_eq!(records, vec![first, second]);
+    }
 }
