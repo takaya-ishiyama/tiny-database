@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::{
     fs::{File, OpenOptions},
     path::Path,
@@ -27,13 +27,35 @@ impl Log {
 
         Ok(())
     }
+
+    pub fn scan(&mut self) -> Result<Vec<Record>> {
+        self.file.seek(SeekFrom::Start(0))?;
+
+        let mut bytes = Vec::new();
+        self.file.read_to_end(&mut bytes)?;
+
+        let mut records = Vec::new();
+        let mut offset = 0;
+
+        while offset < bytes.len() {
+            let record_len = Record::encoded_len(&bytes[offset..])?;
+
+            let record_end = offset + record_len;
+
+            let record = Record::decode(&bytes[offset..record_end])?;
+            records.push(record);
+
+            offset = record_end;
+        }
+
+        Ok(records)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
-    use tempfile::tempfile;
 
     #[test]
     fn appends_encoded_record_to_file() {
@@ -73,5 +95,22 @@ mod tests {
         let actual = fs::read(&path).unwrap();
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn scans_multiple_records_in_order() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        let first = Record::new(b"name".to_vec(), b"Taro".to_vec(), false);
+        let second = Record::new(b"city".to_vec(), b"Tokyo".to_vec(), false);
+
+        let mut log = Log::open(&path).unwrap();
+        log.append(&first).unwrap();
+        log.append(&second).unwrap();
+
+        let records = log.scan().unwrap();
+
+        assert_eq!(records, vec![first, second]);
     }
 }
