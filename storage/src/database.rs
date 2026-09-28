@@ -1,6 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
-use crate::record::Record;
+use crate::{Result, log::Log, record::Record};
+
+pub struct Database {
+    log: Log,
+    index: HashMap<Vec<u8>, Vec<u8>>,
+}
 
 pub(crate) fn rebuild_index(records: Vec<Record>) -> HashMap<Vec<u8>, Vec<u8>> {
     let mut index = HashMap::new();
@@ -14,6 +19,20 @@ pub(crate) fn rebuild_index(records: Vec<Record>) -> HashMap<Vec<u8>, Vec<u8>> {
     }
 
     index
+}
+
+impl Database {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self> {
+        let mut log = Log::open(path)?;
+        let records = log.scan()?;
+        let index = rebuild_index(records);
+
+        Ok(Self { log, index })
+    }
+
+    pub fn get(&self, key: &[u8]) -> Option<&[u8]> {
+        self.index.get(key).map(Vec::as_slice)
+    }
 }
 
 #[cfg(test)]
