@@ -43,6 +43,15 @@ impl Database {
 
         Ok(())
     }
+
+    pub fn delete(&mut self, key: &[u8]) -> Result<()> {
+        let record = Record::new(key.to_vec(), Vec::new(), true);
+
+        self.log.append(&record)?;
+        self.index.remove(key);
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
