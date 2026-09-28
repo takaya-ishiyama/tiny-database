@@ -33,6 +33,16 @@ impl Database {
     pub fn get(&self, key: &[u8]) -> Option<&[u8]> {
         self.index.get(key).map(Vec::as_slice)
     }
+
+    pub fn put(&mut self, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
+        let record = Record::new(key, value, false);
+
+        // 永続化後にメモリ上のindexを更新
+        self.log.append(&record)?;
+        self.index.insert(record.key, record.value);
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
