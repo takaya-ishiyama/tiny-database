@@ -91,4 +91,22 @@ mod tests {
         assert_eq!(database.get(b"name"), Some(b"Jiro".as_slice()));
         assert_eq!(database.get(b"missing"), None);
     }
+
+    #[test]
+    fn put_can_be_read_after_reopening_database() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        {
+            let mut database = Database::open(&path).unwrap();
+
+            database.put(b"name".to_vec(), b"Taro".to_vec()).unwrap();
+
+            assert_eq!(database.get(b"name"), Some(b"Taro".as_slice()));
+        }
+
+        let reopened = Database::open(&path).unwrap();
+
+        assert_eq!(reopened.get(b"name"), Some(b"Taro".as_slice()));
+    }
 }
