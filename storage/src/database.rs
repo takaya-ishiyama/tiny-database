@@ -56,6 +56,8 @@ impl Database {
 
 #[cfg(test)]
 mod tests {
+    use crate::database;
+
     use super::*;
 
     #[test]
@@ -117,5 +119,25 @@ mod tests {
         let reopened = Database::open(&path).unwrap();
 
         assert_eq!(reopened.get(b"name"), Some(b"Taro".as_slice()));
+    }
+
+    #[test]
+    fn delete_remains_deleted_after_reopening_database() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        {
+            let mut database = Database::open(&path).unwrap();
+
+            database.put(b"name".to_vec(), b"Taro".to_vec()).unwrap();
+
+            database.delete(b"name").unwrap();
+
+            assert_eq!(database.get(b"name"), None);
+        }
+
+        let reopened = Database::open(&path).unwrap();
+
+        assert_eq!(reopened.get(b"name"), None);
     }
 }
