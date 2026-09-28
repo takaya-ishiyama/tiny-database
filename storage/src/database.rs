@@ -60,4 +60,25 @@ mod tests {
         let index = rebuild_index(records);
         assert_eq!(index.get(b"name".as_slice()), None);
     }
+
+    #[test]
+    fn gets_latest_value_after_opening_database() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        {
+            let mut log = Log::open(&path).unwrap();
+
+            log.append(&Record::new(b"name".to_vec(), b"Taro".to_vec(), false))
+                .unwrap();
+
+            log.append(&Record::new(b"name".to_vec(), b"Jiro".to_vec(), false))
+                .unwrap();
+        }
+
+        let database = Database::open(&path).unwrap();
+
+        assert_eq!(database.get(b"name"), Some(b"Jiro".as_slice()));
+        assert_eq!(database.get(b"missing"), None);
+    }
 }
