@@ -40,7 +40,11 @@ impl Log {
         while offset < bytes.len() {
             let record_len = match Record::encoded_len(&bytes[offset..]) {
                 Ok(len) => len,
-                Err(Error::TruncatedRecord { .. }) => break,
+                Err(Error::TruncatedRecord { .. }) => {
+                    self.file.set_len(offset as u64)?;
+                    self.file.seek(SeekFrom::End(0))?;
+                    break;
+                }
                 Err(e) => return Err(e),
             };
 
