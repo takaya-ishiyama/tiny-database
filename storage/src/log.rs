@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use crate::{Result, record::Record};
+use crate::{Error, Result, record::Record};
 
 pub(crate) struct Log {
     file: File,
@@ -38,7 +38,11 @@ impl Log {
         let mut offset = 0;
 
         while offset < bytes.len() {
-            let record_len = Record::encoded_len(&bytes[offset..])?;
+            let record_len = match Record::encoded_len(&bytes[offset..]) {
+                Ok(len) => len,
+                Err(Error::TruncatedRecord { .. }) => break,
+                Err(e) => return Err(e),
+            };
 
             let record_end = offset + record_len;
 
