@@ -1,5 +1,6 @@
 use std::{
     fs::{File, OpenOptions},
+    io::{Read, Seek, SeekFrom, Write},
     path::Path,
 };
 
@@ -22,12 +23,21 @@ impl Pager {
         Ok(Self { file })
     }
 
-    pub fn wrige_page(&mut self, page_id: PageId, page: &[u8; PAGE_SIZE]) -> Result<()> {
-        todo!()
+    pub fn write_page(&mut self, page_id: PageId, page: &[u8; PAGE_SIZE]) -> Result<()> {
+        let offset = page_id * PAGE_SIZE as u64;
+        self.file.seek(SeekFrom::Start(offset))?;
+        self.file.write_all(page)?;
+        self.file.sync_data()?;
+        Ok(())
     }
 
-    pub fn read_page(&mut self, pae_id: PageId) -> Result<[u8; PAGE_SIZE]> {
-        todo!()
+    pub fn read_page(&mut self, page_id: PageId) -> Result<[u8; PAGE_SIZE]> {
+        let offset = page_id * PAGE_SIZE as u64;
+        self.file.seek(SeekFrom::Start(offset))?;
+
+        let mut page = [0u8; PAGE_SIZE];
+        self.file.read_exact(&mut page)?;
+        Ok(page)
     }
 }
 
