@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use crate::Result;
+use crate::{Error, Result};
 
 pub const PAGE_SIZE: usize = 4096;
 pub type PageId = u64;
@@ -33,11 +33,21 @@ impl Pager {
     }
 
     pub fn read_page(&mut self, page_id: PageId) -> Result<[u8; PAGE_SIZE]> {
+        let file_size = self.file.metadata()?.len();
+        let page_count = file_size / PAGE_SIZE as u64;
+        if page_id >= page_count {
+            return Err(Error::PageOutOfBounds {
+                page_id,
+                page_count,
+            });
+        }
+
         let offset = page_id * PAGE_SIZE as u64;
         self.file.seek(SeekFrom::Start(offset))?;
 
         let mut page = [0u8; PAGE_SIZE];
         self.file.read_exact(&mut page)?;
+
         Ok(page)
     }
 }
@@ -45,6 +55,7 @@ impl Pager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Error;
 
     #[test]
     fn page_round_trips() {
@@ -77,5 +88,23 @@ mod tests {
 
         assert_eq!(loaded_first, first_page);
         assert_eq!(loaded_second, second_page);
+    }
+
+    #[test]
+    fn reading_nonexistent_page_fails() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        let mut pager = Pager::open(&path).unwrap();
+
+        let not_exists_page = pager.read_page(0);
+
+        assert!(matches!(
+            not_exists_page,
+            Err(Error::PageOutOfBounds {
+                page_id: 0,
+                page_count: 0
+            })
+        ));
     }
 }
