@@ -6,10 +6,10 @@ use std::{
 
 use crate::Result;
 
-pub(crate) const PAGE_SIZE: usize = 4096;
-pub(crate) type PageId = u64;
+pub const PAGE_SIZE: usize = 4096;
+pub type PageId = u64;
 
-pub(crate) struct Pager {
+pub struct Pager {
     file: File,
 }
 
@@ -19,6 +19,7 @@ impl Pager {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(path)?;
         Ok(Self { file })
     }
