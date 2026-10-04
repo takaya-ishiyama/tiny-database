@@ -50,6 +50,10 @@ impl Pager {
 
         Ok(page)
     }
+
+    pub fn allocate_page(&mut self) -> Result<PageId> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
@@ -106,5 +110,27 @@ mod tests {
                 page_count: 0
             })
         ));
+    }
+
+    #[test]
+    fn allocates_pages_sequentially() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        let mut pager = Pager::open(&path).unwrap();
+
+        let first_page_id = pager.allocate_page().unwrap();
+        let second_page_id = pager.allocate_page().unwrap();
+
+        assert_eq!(first_page_id, 0);
+        assert_eq!(second_page_id, 1);
+
+        // 割り当てたページが実際に存在し、空ページとして読み込めることを確認する
+        let empty_page = [0u8; PAGE_SIZE];
+        let loaded_first = pager.read_page(first_page_id).unwrap();
+        let loaded_second = pager.read_page(second_page_id).unwrap();
+
+        assert_eq!(loaded_first, empty_page);
+        assert_eq!(loaded_second, empty_page);
     }
 }
