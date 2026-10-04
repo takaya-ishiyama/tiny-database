@@ -60,4 +60,22 @@ mod tests {
 
         assert_eq!(loaded, page);
     }
+
+    #[test]
+    fn different_pages_do_not_overwrite_each_other() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        let mut pager = Pager::open(&path).unwrap();
+        let first_page = [1u8; PAGE_SIZE];
+        let second_page = [2u8; PAGE_SIZE];
+
+        pager.write_page(0, &first_page).unwrap();
+        pager.write_page(1, &second_page).unwrap();
+        let loaded_first = pager.read_page(0).unwrap();
+        let loaded_second = pager.read_page(1).unwrap();
+
+        assert_eq!(loaded_first, first_page);
+        assert_eq!(loaded_second, second_page);
+    }
 }
