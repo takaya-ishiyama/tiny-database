@@ -52,7 +52,11 @@ impl Pager {
     }
 
     pub fn allocate_page(&mut self) -> Result<PageId> {
-        todo!()
+        let file_size = self.file.metadata()?.len();
+        let next_page_id = file_size / PAGE_SIZE as u64;
+        let empty_page = [0u8; PAGE_SIZE];
+        self.write_page(next_page_id, &empty_page)?;
+        Ok(next_page_id)
     }
 }
 
@@ -132,5 +136,16 @@ mod tests {
 
         assert_eq!(loaded_first, empty_page);
         assert_eq!(loaded_second, empty_page);
+    }
+    #[test]
+    fn rejects_file_with_partial_page() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        let partial_page = vec![0u8; PAGE_SIZE - 1];
+        std::fs::write(&path, partial_page).unwrap();
+
+        let result = Pager::open(&path);
+        assert!(result.is_err());
     }
 }

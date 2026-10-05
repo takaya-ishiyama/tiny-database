@@ -20,6 +20,8 @@ pub enum Error {
     CorruptedRecord(&'static str),
     /// The requested page is outside the bounds of the file.
     PageOutOfBounds { page_id: u64, page_count: u64 },
+    /// The file size is not a multiple of the page size.
+    InvalidPageFileSize { actual: u64, page_size: u64 },
 }
 
 impl fmt::Display for Error {
@@ -53,6 +55,10 @@ impl fmt::Display for Error {
             } => write!(
                 f,
                 "page {page_id} is out of bounds (file contains {page_count} pages)"
+            ),
+            Self::InvalidPageFileSize { actual, page_size } => write!(
+                f,
+                "invalid page file size: {actual} bytes (must be a multiple of {page_size} bytes)"
             ),
         }
     }
