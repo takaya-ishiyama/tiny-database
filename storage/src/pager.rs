@@ -155,7 +155,13 @@ mod tests {
         std::fs::write(&path, partial_page).unwrap();
 
         let result = Pager::open(&path);
-        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(Error::InvalidPageFileSize {
+                actual: 4095,
+                page_size: 4096
+            })
+        ))
     }
     #[test]
     fn page_survives_reopening_pager() {
