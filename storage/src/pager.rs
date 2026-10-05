@@ -9,13 +9,17 @@ use crate::{Error, Result};
 pub const PAGE_SIZE: usize = 4096;
 pub type PageId = u64;
 
+pub const MAGIC: &[u8; 8] = b"TINYDB01";
+pub const FORMAT_VERSION: u32 = 1;
+pub const FILE_HEADER_SIZE: u64 = 12;
+
 pub struct Pager {
     file: File,
 }
 
 impl Pager {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let file = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
@@ -23,18 +27,31 @@ impl Pager {
             .open(path)?;
 
         let file_size = file.metadata()?.len();
-        if file_size % PAGE_SIZE as u64 != 0 {
+
+        if file_size == 0 {
+            // Write the file header
+            file.write_all(MAGIC)?;
+            file.write_all(&FORMAT_VERSION.to_le_bytes())?;
+            file.sync_data()?;
+        } else if file_size < FILE_HEADER_SIZE {
             return Err(Error::InvalidPageFileSize {
                 actual: file_size,
-                page_size: PAGE_SIZE as u64,
+                page_size: FILE_HEADER_SIZE,
             });
+        } else {
+            if (file_size - FILE_HEADER_SIZE) % PAGE_SIZE as u64 != 0 {
+                return Err(Error::InvalidPageFileSize {
+                    actual: file_size,
+                    page_size: PAGE_SIZE as u64,
+                });
+            }
         }
 
         Ok(Self { file })
     }
 
     pub fn write_page(&mut self, page_id: PageId, page: &[u8; PAGE_SIZE]) -> Result<()> {
-        let offset = page_id * PAGE_SIZE as u64;
+        let offset = FILE_HEADER_SIZE + page_id * PAGE_SIZE as u64;
         self.file.seek(SeekFrom::Start(offset))?;
         self.file.write_all(page)?;
         self.file.sync_data()?;
@@ -43,7 +60,7 @@ impl Pager {
 
     pub fn read_page(&mut self, page_id: PageId) -> Result<[u8; PAGE_SIZE]> {
         let file_size = self.file.metadata()?.len();
-        let page_count = file_size / PAGE_SIZE as u64;
+        let page_count = (file_size - FILE_HEADER_SIZE) / PAGE_SIZE as u64;
         if page_id >= page_count {
             return Err(Error::PageOutOfBounds {
                 page_id,
@@ -51,7 +68,7 @@ impl Pager {
             });
         }
 
-        let offset = page_id * PAGE_SIZE as u64;
+        let offset = FILE_HEADER_SIZE + page_id * PAGE_SIZE as u64;
         self.file.seek(SeekFrom::Start(offset))?;
 
         let mut page = [0u8; PAGE_SIZE];
@@ -62,7 +79,7 @@ impl Pager {
 
     pub fn allocate_page(&mut self) -> Result<PageId> {
         let file_size = self.file.metadata()?.len();
-        let next_page_id = file_size / PAGE_SIZE as u64;
+        let next_page_id = (file_size - FILE_HEADER_SIZE) / PAGE_SIZE as u64;
         let empty_page = [0u8; PAGE_SIZE];
         self.write_page(next_page_id, &empty_page)?;
         Ok(next_page_id)
@@ -179,5 +196,20 @@ mod tests {
         let mut reopened = Pager::open(&path).unwrap();
         let loaded = reopened.read_page(0).unwrap();
         assert_eq!(loaded, page);
+    }
+    #[test]
+    fn new_file_contains_header() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+        {
+            let _pager = Pager::open(&path).unwrap();
+        }
+        let bytes = std::fs::read(&path).unwrap();
+
+        let mut expected = Vec::new();
+        expected.extend_from_slice(MAGIC);
+        expected.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
+
+        assert_eq!(bytes, expected);
     }
 }
