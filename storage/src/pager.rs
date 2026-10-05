@@ -157,4 +157,21 @@ mod tests {
         let result = Pager::open(&path);
         assert!(result.is_err());
     }
+    #[test]
+    fn page_survives_reopening_pager() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+
+        let page = [1u8; PAGE_SIZE];
+        {
+            let mut pager = Pager::open(&path).unwrap();
+            let page_id = pager.allocate_page().unwrap();
+            assert_eq!(page_id, 0);
+
+            pager.write_page(page_id, &page).unwrap();
+        }
+        let mut reopened = Pager::open(&path).unwrap();
+        let loaded = reopened.read_page(0).unwrap();
+        assert_eq!(loaded, page);
+    }
 }
