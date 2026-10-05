@@ -21,6 +21,15 @@ impl Pager {
             .create(true)
             .truncate(false)
             .open(path)?;
+
+        let file_size = file.metadata()?.len();
+        if file_size % PAGE_SIZE as u64 != 0 {
+            return Err(Error::InvalidPageFileSize {
+                actual: file_size,
+                page_size: PAGE_SIZE as u64,
+            });
+        }
+
         Ok(Self { file })
     }
 
