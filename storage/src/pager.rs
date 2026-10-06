@@ -39,7 +39,8 @@ impl Pager {
                 page_size: FILE_HEADER_SIZE,
             });
         } else {
-            if (file_size - FILE_HEADER_SIZE) % PAGE_SIZE as u64 != 0 {
+            // ページ領域のサイズがPAGE_SIZEの倍数であることを確認する
+            if !(file_size - FILE_HEADER_SIZE).is_multiple_of(PAGE_SIZE as u64) {
                 return Err(Error::InvalidPageFileSize {
                     actual: file_size,
                     page_size: PAGE_SIZE as u64,
