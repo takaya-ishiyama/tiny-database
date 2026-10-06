@@ -73,16 +73,7 @@ impl Pager {
     }
 
     pub fn write_page(&mut self, page_id: PageId, page: &[u8; PAGE_SIZE]) -> Result<()> {
-        let offset = FILE_HEADER_SIZE + page_id * PAGE_SIZE as u64;
-        self.file.seek(SeekFrom::Start(offset))?;
-        self.file.write_all(page)?;
-        self.file.sync_data()?;
-        Ok(())
-    }
-
-    pub fn read_page(&mut self, page_id: PageId) -> Result<[u8; PAGE_SIZE]> {
-        let file_size = self.file.metadata()?.len();
-        let page_count = (file_size - FILE_HEADER_SIZE) / PAGE_SIZE as u64;
+        let page_count = self.page_count()?;
         if page_id >= page_count {
             return Err(Error::PageOutOfBounds {
                 page_id,
@@ -90,7 +81,23 @@ impl Pager {
             });
         }
 
-        let offset = FILE_HEADER_SIZE + page_id * PAGE_SIZE as u64;
+        let offset = Self::page_offset(page_id);
+        self.file.seek(SeekFrom::Start(offset))?;
+        self.file.write_all(page)?;
+        self.file.sync_data()?;
+        Ok(())
+    }
+
+    pub fn read_page(&mut self, page_id: PageId) -> Result<[u8; PAGE_SIZE]> {
+        let page_count = self.page_count()?;
+        if page_id >= page_count {
+            return Err(Error::PageOutOfBounds {
+                page_id,
+                page_count,
+            });
+        }
+
+        let offset = Self::page_offset(page_id);
         self.file.seek(SeekFrom::Start(offset))?;
 
         let mut page = [0u8; PAGE_SIZE];
@@ -100,11 +107,20 @@ impl Pager {
     }
 
     pub fn allocate_page(&mut self) -> Result<PageId> {
-        let file_size = self.file.metadata()?.len();
-        let next_page_id = (file_size - FILE_HEADER_SIZE) / PAGE_SIZE as u64;
+        let next_page_id = self.page_count()?;
         let empty_page = [0u8; PAGE_SIZE];
-        self.write_page(next_page_id, &empty_page)?;
+        let offset = Self::page_offset(next_page_id);
+        self.file.seek(SeekFrom::Start(offset))?;
+        self.file.write_all(&empty_page)?;
+        self.file.sync_data()?;
         Ok(next_page_id)
+    }
+    fn page_count(&self) -> Result<u64> {
+        let file_size = self.file.metadata()?.len();
+        Ok((file_size - FILE_HEADER_SIZE) / PAGE_SIZE as u64)
+    }
+    fn page_offset(page_id: PageId) -> u64 {
+        FILE_HEADER_SIZE + page_id * PAGE_SIZE as u64
     }
 }
 
@@ -122,7 +138,8 @@ mod tests {
 
         let page = [42u8; PAGE_SIZE];
 
-        pager.write_page(0, &page).unwrap();
+        let page_id = pager.allocate_page().unwrap();
+        pager.write_page(page_id, &page).unwrap();
         let loaded = pager.read_page(0).unwrap();
 
         assert_eq!(loaded, page);
@@ -137,8 +154,10 @@ mod tests {
         let first_page = [1u8; PAGE_SIZE];
         let second_page = [2u8; PAGE_SIZE];
 
-        pager.write_page(0, &first_page).unwrap();
-        pager.write_page(1, &second_page).unwrap();
+        let first_page_id = pager.allocate_page().unwrap();
+        let second_page_id = pager.allocate_page().unwrap();
+        pager.write_page(first_page_id, &first_page).unwrap();
+        pager.write_page(second_page_id, &second_page).unwrap();
         let loaded_first = pager.read_page(0).unwrap();
         let loaded_second = pager.read_page(1).unwrap();
 
@@ -271,6 +290,24 @@ mod tests {
             Err(Error::UnsupportedFormatVersion {
                 expected: 1,
                 actual: 999
+            })
+        ));
+    }
+    #[test]
+    fn writing_unallocated_page_fails() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        let mut pager = Pager::open(&path).unwrap();
+        let page = [1u8; PAGE_SIZE];
+
+        let result = pager.write_page(0, &page);
+
+        assert!(matches!(
+            result,
+            Err(Error::PageOutOfBounds {
+                page_id: 0,
+                page_count: 0,
             })
         ));
     }

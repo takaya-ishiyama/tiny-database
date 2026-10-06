@@ -20,7 +20,7 @@ pub enum Error {
     CorruptedRecord(&'static str),
     /// The requested page is outside the bounds of the file.
     PageOutOfBounds { page_id: u64, page_count: u64 },
-    /// The file size is not a multiple of the page size.
+    /// The page region after the file header is not page-aligned.
     InvalidPageFileSize { actual: u64, page_size: u64 },
     /// The file header does not match the expected magic bytes.
     InvalidMagic { expected: [u8; 8], actual: [u8; 8] },
