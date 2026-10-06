@@ -22,6 +22,8 @@ pub enum Error {
     PageOutOfBounds { page_id: u64, page_count: u64 },
     /// The file size is not a multiple of the page size.
     InvalidPageFileSize { actual: u64, page_size: u64 },
+    /// The file header does not match the expected magic bytes.
+    InvalidMagic { expected: [u8; 8], actual: [u8; 8] },
 }
 
 impl fmt::Display for Error {
@@ -59,6 +61,12 @@ impl fmt::Display for Error {
             Self::InvalidPageFileSize { actual, page_size } => write!(
                 f,
                 "invalid page file size: {actual} bytes (must be a multiple of {page_size} bytes)"
+            ),
+            Self::InvalidMagic { expected, actual } => write!(
+                f,
+                "invalid file magic: expected {:?}, found {:?}",
+                String::from_utf8_lossy(expected),
+                String::from_utf8_lossy(actual)
             ),
         }
     }

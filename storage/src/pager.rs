@@ -213,4 +213,24 @@ mod tests {
 
         assert_eq!(bytes, expected);
     }
+    #[test]
+    fn rejects_file_with_invalid_magic() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+        let invalid_magic: &[u8; 8] = b"INVALID!";
+        let mut file = File::create(&path).unwrap();
+        file.write_all(invalid_magic).unwrap();
+        file.write_all(&FORMAT_VERSION.to_le_bytes()).unwrap();
+        drop(file);
+
+        let result = Pager::open(&path);
+
+        assert!(matches!(
+            result,
+            Err(Error::InvalidMagic {
+                expected: [b'T', b'I', b'N', b'Y', b'D', b'B', b'0', b'1'],
+                actual: [b'I', b'N', b'V', b'A', b'L', b'I', b'D', b'!']
+            })
+        ));
+    }
 }
