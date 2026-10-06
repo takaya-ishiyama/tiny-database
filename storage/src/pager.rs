@@ -56,6 +56,17 @@ impl Pager {
                     actual: magic,
                 });
             }
+
+            // magicを読み込んだ後なので、ファイルのカーソル位置はすでに8バイト進んでいる。次に4バイトを読み込むことで、フォーマットバージョンを取得することができる。
+            let mut version_bytes = [0u8; 4];
+            file.read_exact(&mut version_bytes)?;
+            let version = u32::from_le_bytes(version_bytes);
+            if version != FORMAT_VERSION {
+                return Err(Error::UnsupportedFormatVersion {
+                    expected: FORMAT_VERSION,
+                    actual: version,
+                });
+            }
         }
 
         Ok(Self { file })
@@ -240,6 +251,26 @@ mod tests {
             Err(Error::InvalidMagic {
                 expected: [b'T', b'I', b'N', b'Y', b'D', b'B', b'0', b'1'],
                 actual: [b'I', b'N', b'V', b'A', b'L', b'I', b'D', b'!']
+            })
+        ));
+    }
+    #[test]
+    fn rejects_file_with_unsupported_version() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.log");
+        let invalid_version: u32 = 999;
+        let mut file = File::create(&path).unwrap();
+        file.write_all(MAGIC).unwrap();
+        file.write_all(&invalid_version.to_le_bytes()).unwrap();
+        drop(file);
+
+        let result = Pager::open(&path);
+
+        assert!(matches!(
+            result,
+            Err(Error::UnsupportedFormatVersion {
+                expected: 1,
+                actual: 999
             })
         ));
     }

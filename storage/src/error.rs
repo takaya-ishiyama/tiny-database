@@ -24,6 +24,8 @@ pub enum Error {
     InvalidPageFileSize { actual: u64, page_size: u64 },
     /// The file header does not match the expected magic bytes.
     InvalidMagic { expected: [u8; 8], actual: [u8; 8] },
+    /// The file header does not match the expected format version.
+    UnsupportedFormatVersion { expected: u32, actual: u32 },
 }
 
 impl fmt::Display for Error {
@@ -67,6 +69,11 @@ impl fmt::Display for Error {
                 "invalid file magic: expected {:?}, found {:?}",
                 String::from_utf8_lossy(expected),
                 String::from_utf8_lossy(actual)
+            ),
+            Self::UnsupportedFormatVersion { expected, actual } => write!(
+                f,
+                "unsupported format version: expected {}, found {}",
+                expected, actual
             ),
         }
     }
