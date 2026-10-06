@@ -46,6 +46,16 @@ impl Pager {
                     page_size: PAGE_SIZE as u64,
                 });
             }
+
+            // Read and validate the file header
+            let mut magic = [0u8; 8];
+            file.read_exact(&mut magic)?;
+            if magic != *MAGIC {
+                return Err(Error::InvalidMagic {
+                    expected: *MAGIC,
+                    actual: magic,
+                });
+            }
         }
 
         Ok(Self { file })
