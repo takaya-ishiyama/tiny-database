@@ -382,4 +382,27 @@ mod tests {
         assert_eq!(second_page_id, 1);
         assert_eq!(reused, first_page_id);
     }
+    #[test]
+    fn reuses_multiple_freed_pages_in_lifo_order() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        let mut pager = Pager::open(&path).unwrap();
+
+        let page_0 = pager.allocate_page().unwrap();
+        let page_1 = pager.allocate_page().unwrap();
+        let page_2 = pager.allocate_page().unwrap();
+
+        pager.free_page(page_0).unwrap();
+        pager.free_page(page_2).unwrap();
+
+        let first_reused = pager.allocate_page().unwrap();
+        let second_reused = pager.allocate_page().unwrap();
+        let newly_allocated = pager.allocate_page().unwrap();
+
+        assert_eq!(page_1, 1);
+        assert_eq!(first_reused, page_2);
+        assert_eq!(second_reused, page_0);
+        assert_eq!(newly_allocated, 3);
+    }
 }
