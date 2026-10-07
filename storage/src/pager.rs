@@ -115,6 +115,20 @@ impl Pager {
         self.file.sync_data()?;
         Ok(next_page_id)
     }
+    pub fn free_page(&mut self, page_id: PageId) -> Result<()> {
+        let page_count = self.page_count()?;
+        if page_id >= page_count {
+            return Err(Error::PageOutOfBounds {
+                page_id,
+                page_count,
+            });
+        }
+        let offset = Self::page_offset(page_id);
+        self.file.seek(SeekFrom::Start(offset))?;
+        let empty_page = [0u8; PAGE_SIZE];
+        self.file.write_all(&empty_page)?;
+        Ok(())
+    }
     fn page_count(&self) -> Result<u64> {
         let file_size = self.file.metadata()?.len();
         Ok((file_size - FILE_HEADER_SIZE) / PAGE_SIZE as u64)
@@ -310,5 +324,22 @@ mod tests {
                 page_count: 0,
             })
         ));
+    }
+    #[test]
+    fn reuses_freed_page() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+        let mut pager = Pager::open(&path).unwrap();
+
+        let first_page_id = pager.allocate_page().unwrap();
+        let second_page_id = pager.allocate_page().unwrap();
+
+        pager.free_page(first_page_id).unwrap();
+
+        let reused = pager.allocate_page().unwrap();
+
+        assert_eq!(first_page_id, 0);
+        assert_eq!(second_page_id, 1);
+        assert_eq!(reused, first_page_id);
     }
 }
