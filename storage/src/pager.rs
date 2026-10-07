@@ -162,6 +162,7 @@ impl Pager {
         self.free_page_head = page_id;
         self.file.seek(SeekFrom::Start(FREE_PAGE_HEAD_OFFSET))?;
         self.file.write_all(&self.free_page_head.to_le_bytes())?;
+        self.file.sync_data()?;
 
         Ok(())
     }
