@@ -11,10 +11,13 @@ pub type PageId = u64;
 
 pub const MAGIC: &[u8; 8] = b"TINYDB01";
 pub const FORMAT_VERSION: u32 = 1;
-pub const FILE_HEADER_SIZE: u64 = 12;
+pub const FILE_HEADER_SIZE: u64 = 20;
+pub const NO_FREE_PAGE: PageId = u64::MAX;
+const FREE_PAGE_HEAD_OFFSET: u64 = 12;
 
 pub struct Pager {
     file: File,
+    free_page_head: PageId,
 }
 
 impl Pager {
@@ -32,6 +35,7 @@ impl Pager {
             // Write the file header
             file.write_all(MAGIC)?;
             file.write_all(&FORMAT_VERSION.to_le_bytes())?;
+            file.write_all(&NO_FREE_PAGE.to_le_bytes())?;
             file.sync_data()?;
         } else if file_size < FILE_HEADER_SIZE {
             return Err(Error::InvalidPageFileSize {
@@ -69,7 +73,15 @@ impl Pager {
             }
         }
 
-        Ok(Self { file })
+        file.seek(SeekFrom::Start(FREE_PAGE_HEAD_OFFSET))?;
+        let mut free_page_head_bytes = [0u8; 8];
+        file.read_exact(&mut free_page_head_bytes)?;
+        let free_page_head = u64::from_le_bytes(free_page_head_bytes);
+
+        Ok(Self {
+            file,
+            free_page_head,
+        })
     }
 
     pub fn write_page(&mut self, page_id: PageId, page: &[u8; PAGE_SIZE]) -> Result<()> {
@@ -107,7 +119,22 @@ impl Pager {
     }
 
     pub fn allocate_page(&mut self) -> Result<PageId> {
-        let next_page_id = self.page_count()?;
+        // let next_page_id = self.page_count()?;
+        let next_page_id = if self.free_page_head != NO_FREE_PAGE {
+            let free_page_id = self.free_page_head;
+            let offset = Self::page_offset(free_page_id);
+            self.file.seek(SeekFrom::Start(offset))?;
+
+            let mut next_free_page_bytes = [0u8; 8];
+            self.file.read_exact(&mut next_free_page_bytes)?;
+            self.free_page_head = u64::from_le_bytes(next_free_page_bytes);
+
+            self.file.seek(SeekFrom::Start(FREE_PAGE_HEAD_OFFSET))?;
+            self.file.write_all(&self.free_page_head.to_le_bytes())?;
+            free_page_id
+        } else {
+            self.page_count()?
+        };
         let empty_page = [0u8; PAGE_SIZE];
         let offset = Self::page_offset(next_page_id);
         self.file.seek(SeekFrom::Start(offset))?;
@@ -125,8 +152,17 @@ impl Pager {
         }
         let offset = Self::page_offset(page_id);
         self.file.seek(SeekFrom::Start(offset))?;
-        let empty_page = [0u8; PAGE_SIZE];
+
+        let next_free_page: u64 = self.free_page_head;
+        let mut empty_page = [0u8; PAGE_SIZE];
+        empty_page[0..8].copy_from_slice(&next_free_page.to_le_bytes());
         self.file.write_all(&empty_page)?;
+        self.file.sync_data()?;
+
+        self.free_page_head = page_id;
+        self.file.seek(SeekFrom::Start(FREE_PAGE_HEAD_OFFSET))?;
+        self.file.write_all(&self.free_page_head.to_le_bytes())?;
+
         Ok(())
     }
     fn page_count(&self) -> Result<u64> {
@@ -264,6 +300,7 @@ mod tests {
         let mut expected = Vec::new();
         expected.extend_from_slice(MAGIC);
         expected.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
+        expected.extend_from_slice(&NO_FREE_PAGE.to_le_bytes());
 
         assert_eq!(bytes, expected);
     }
@@ -275,6 +312,7 @@ mod tests {
         let mut file = File::create(&path).unwrap();
         file.write_all(invalid_magic).unwrap();
         file.write_all(&FORMAT_VERSION.to_le_bytes()).unwrap();
+        file.write_all(&NO_FREE_PAGE.to_le_bytes()).unwrap();
         drop(file);
 
         let result = Pager::open(&path);
@@ -295,6 +333,7 @@ mod tests {
         let mut file = File::create(&path).unwrap();
         file.write_all(MAGIC).unwrap();
         file.write_all(&invalid_version.to_le_bytes()).unwrap();
+        file.write_all(&NO_FREE_PAGE.to_le_bytes()).unwrap();
         drop(file);
 
         let result = Pager::open(&path);
