@@ -404,4 +404,29 @@ mod tests {
         assert_eq!(second_reused, page_0);
         assert_eq!(newly_allocated, 3);
     }
+    #[test]
+    fn free_list_survives_reopening_pager() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        {
+            let mut pager = Pager::open(&path).unwrap();
+
+            let page_0 = pager.allocate_page().unwrap();
+            let page_1 = pager.allocate_page().unwrap();
+
+            assert_eq!(page_0, 0);
+            assert_eq!(page_1, 1);
+
+            pager.free_page(page_0).unwrap();
+        }
+
+        let mut reopened = Pager::open(&path).unwrap();
+
+        let reused = reopened.allocate_page().unwrap();
+        let newly_allocated = reopened.allocate_page().unwrap();
+
+        assert_eq!(reused, 0);
+        assert_eq!(newly_allocated, 2);
+    }
 }
