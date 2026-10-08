@@ -119,7 +119,6 @@ impl Pager {
     }
 
     pub fn allocate_page(&mut self) -> Result<PageId> {
-        // let next_page_id = self.page_count()?;
         let next_page_id = if self.free_page_head != NO_FREE_PAGE {
             let free_page_id = self.free_page_head;
             let offset = Self::page_offset(free_page_id);
