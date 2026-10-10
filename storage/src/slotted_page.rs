@@ -74,4 +74,15 @@ mod tests {
         assert_eq!(slot_id, 0);
         assert_eq!(loaded, Some(&record[..]));
     }
+    #[test]
+    fn returns_none_for_invalid_slot_id() {
+        let mut page = SlottedPage::new();
+        let record = b"hello";
+        let slot_id = page.insert(record).unwrap();
+
+        let invalid_slot_id = slot_id + 1;
+        let loaded = page.get(invalid_slot_id);
+
+        assert_eq!(loaded, None);
+    }
 }
