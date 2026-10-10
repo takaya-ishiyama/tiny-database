@@ -23,7 +23,15 @@ impl SlottedPage {
         let free_end = u16::from_le_bytes(self.bytes[2..4].try_into().unwrap()) as usize;
         let slot_id = slot_count;
 
-        let record_start = free_end - record.len();
+        let new_slot_end = HEADER_SIZE + (slot_count as usize + 1) * SLOT_SIZE;
+
+        let Some(record_start) = free_end.checked_sub(record.len()) else {
+            return Err(Error::PageFull);
+        };
+
+        if record_start < new_slot_end {
+            return Err(Error::PageFull);
+        }
 
         self.bytes[record_start..free_end].copy_from_slice(record);
 
@@ -100,5 +108,12 @@ mod tests {
         assert_eq!(slot_id_2, 1);
         assert_eq!(loaded_1, record_1);
         assert_eq!(loaded_2, record_2);
+    }
+    #[test]
+    fn returns_error_when_record_does_not_fit() {
+        let mut page = SlottedPage::new();
+        let record = vec![0u8; PAGE_SIZE];
+        let result = page.insert(&record);
+        assert!(matches!(result, Err(Error::PageFull)))
     }
 }
