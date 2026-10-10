@@ -85,4 +85,20 @@ mod tests {
 
         assert_eq!(loaded, None);
     }
+    #[test]
+    fn multiple_records_can_be_retrieved_by_their_slot_ids() {
+        let mut page = SlottedPage::new();
+        let record_1 = b"first";
+        let record_2 = b"second";
+        let slot_id_1 = page.insert(record_1).unwrap();
+        let slot_id_2 = page.insert(record_2).unwrap();
+
+        let loaded_1 = page.get(slot_id_1).unwrap();
+        let loaded_2 = page.get(slot_id_2).unwrap();
+
+        assert_eq!(slot_id_1, 0);
+        assert_eq!(slot_id_2, 1);
+        assert_eq!(loaded_1, record_1);
+        assert_eq!(loaded_2, record_2);
+    }
 }
