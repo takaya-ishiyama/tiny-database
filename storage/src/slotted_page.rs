@@ -136,4 +136,17 @@ mod tests {
         let result = page.insert(&record);
         assert!(matches!(result, Err(Error::PageFull)))
     }
+    #[test]
+    fn returns_page_full_when_multiple_records_fill_the_page() {
+        let mut page = SlottedPage::new();
+        for _ in 0..PAGE_SIZE {
+            let record = [0u8];
+            let result = page.insert(&record);
+            if let Err(Error::PageFull) = result {
+                assert!(result.is_err());
+                return;
+            }
+        }
+        panic!("its over")
+    }
 }
