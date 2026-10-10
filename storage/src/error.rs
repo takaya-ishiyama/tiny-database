@@ -26,6 +26,8 @@ pub enum Error {
     InvalidMagic { expected: [u8; 8], actual: [u8; 8] },
     /// The file header does not match the expected format version.
     UnsupportedFormatVersion { expected: u32, actual: u32 },
+    /// The page does not have enough free space for another record and slot.
+    PageFull,
 }
 
 impl fmt::Display for Error {
@@ -75,6 +77,7 @@ impl fmt::Display for Error {
                 "unsupported format version: expected {}, found {}",
                 expected, actual
             ),
+            Self::PageFull => write!(f, "page is full"),
         }
     }
 }
