@@ -116,4 +116,24 @@ mod tests {
         let result = page.insert(&record);
         assert!(matches!(result, Err(Error::PageFull)))
     }
+    #[test]
+    fn largest_record_that_fits_can_be_inserted() {
+        let mut page = SlottedPage::new();
+        let largest = PAGE_SIZE - HEADER_SIZE - SLOT_SIZE; // 4088
+        let record = vec![0u8; largest];
+        let slot_id = page.insert(&record).unwrap();
+        let loaded = page.get(slot_id);
+
+        assert_eq!(slot_id, 0);
+        assert_eq!(loaded, Some(&record[..]));
+    }
+    #[test]
+    fn record_one_byte_too_large_returns_page_full() {
+        let mut page = SlottedPage::new();
+        let largest = PAGE_SIZE - HEADER_SIZE - SLOT_SIZE; // 4088
+        let too_large = largest + 1; // 4089
+        let record = vec![0u8; too_large];
+        let result = page.insert(&record);
+        assert!(matches!(result, Err(Error::PageFull)))
+    }
 }
