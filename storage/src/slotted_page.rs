@@ -43,7 +43,19 @@ impl SlottedPage {
         Ok(slot_id)
     }
     pub fn get(&self, slot_id: SlotId) -> Option<&[u8]> {
-        todo!()
+        let slot_count = u16::from_le_bytes(self.bytes[0..2].try_into().unwrap());
+        if slot_id >= slot_count {
+            return None;
+        }
+        let slot_start = HEADER_SIZE + slot_id as usize * SLOT_SIZE;
+        let offset =
+            u16::from_le_bytes(self.bytes[slot_start..slot_start + 2].try_into().unwrap()) as usize;
+        let length = u16::from_le_bytes(
+            self.bytes[slot_start + 2..slot_start + 4]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+        Some(&self.bytes[offset..offset + length])
     }
 }
 
