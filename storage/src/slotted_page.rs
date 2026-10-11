@@ -222,4 +222,31 @@ mod tests {
         assert!(page.delete(slot_id));
         assert_eq!(page.get(slot_id), None);
     }
+    #[test]
+    fn deleting_one_record_does_not_affect_other_records() {
+        let mut page = SlottedPage::new();
+
+        let record_1 = b"first";
+        let record_2 = b"second";
+
+        let slot_id_1 = page.insert(record_1).unwrap();
+        let slot_id_2 = page.insert(record_2).unwrap();
+
+        page.delete(slot_id_1);
+
+        assert_eq!(page.get(slot_id_1), None);
+        assert_eq!(page.get(slot_id_2), Some(&record_2[..]))
+    }
+    #[test]
+    fn deleting_invalid_slot_id_returns_false() {
+        let mut page = SlottedPage::new();
+
+        let record = b"hello";
+
+        let slot_id = page.insert(record).unwrap();
+
+        let result = page.delete(slot_id + 1);
+
+        assert!(!result)
+    }
 }
