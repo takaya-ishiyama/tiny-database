@@ -232,7 +232,7 @@ mod tests {
         let slot_id_1 = page.insert(record_1).unwrap();
         let slot_id_2 = page.insert(record_2).unwrap();
 
-        page.delete(slot_id_1);
+        assert!(page.delete(slot_id_1));
 
         assert_eq!(page.get(slot_id_1), None);
         assert_eq!(page.get(slot_id_2), Some(&record_2[..]))
