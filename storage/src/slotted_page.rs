@@ -52,8 +52,7 @@ impl SlottedPage {
         Ok(slot_id)
     }
     pub fn get(&self, slot_id: SlotId) -> Option<&[u8]> {
-        let slot_count = u16::from_le_bytes(self.bytes[0..2].try_into().unwrap());
-        if slot_id >= slot_count {
+        if self.is_invalid_slot_id(slot_id) {
             return None;
         }
         let slot_start = HEADER_SIZE + slot_id as usize * SLOT_SIZE;
@@ -64,6 +63,9 @@ impl SlottedPage {
                 .try_into()
                 .unwrap(),
         ) as usize;
+        if offset == 0 && length == 0 {
+            return None;
+        }
         Some(&self.bytes[offset..offset + length])
     }
     pub fn into_bytes(self) -> [u8; PAGE_SIZE] {
@@ -71,6 +73,19 @@ impl SlottedPage {
     }
     pub fn from_bytes(bytes: [u8; PAGE_SIZE]) -> Self {
         Self { bytes }
+    }
+    pub fn delete(&mut self, slot_id: SlotId) -> bool {
+        if self.is_invalid_slot_id(slot_id) {
+            return false;
+        }
+        let slot_start = HEADER_SIZE + slot_id as usize * SLOT_SIZE;
+        self.bytes[slot_start..slot_start + SLOT_SIZE].fill(0);
+        true
+    }
+
+    fn is_invalid_slot_id(&self, slot_id: SlotId) -> bool {
+        let slot_count = u16::from_le_bytes(self.bytes[0..2].try_into().unwrap());
+        slot_id >= slot_count
     }
 }
 
@@ -198,5 +213,13 @@ mod tests {
         let restored_record = restored.get(slot_id);
 
         assert_eq!(Some(&record[..]), restored_record);
+    }
+    #[test]
+    fn deleted_record_cannot_be_retrieved() {
+        let mut page = SlottedPage::new();
+        let slot_id = page.insert(b"hello").unwrap();
+
+        assert!(page.delete(slot_id));
+        assert_eq!(page.get(slot_id), None);
     }
 }
