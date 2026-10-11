@@ -175,4 +175,28 @@ mod tests {
         assert_eq!(restored.get(slot_id_1), Some(&record_1[..]));
         assert_eq!(restored.get(slot_id_2), Some(&record_2[..]));
     }
+    #[test]
+    fn slotted_page_survives_pager_round_trip() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+        let mut pager = Pager::open(&path).unwrap();
+        let page_id = pager.allocate_page().unwrap();
+
+        let mut page = SlottedPage::new();
+        let record = b"hello";
+        let slot_id = page.insert(record).unwrap();
+
+        let bytes = page.into_bytes();
+
+        pager.write_page(page_id, &bytes).unwrap();
+        drop(pager);
+        let mut pager = Pager::open(&path).unwrap();
+
+        let bytes = pager.read_page(page_id).unwrap();
+
+        let restored = SlottedPage::from_bytes(bytes);
+        let restored_record = restored.get(slot_id);
+
+        assert_eq!(Some(&record[..]), restored_record);
+    }
 }
