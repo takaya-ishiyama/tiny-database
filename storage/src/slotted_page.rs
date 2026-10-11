@@ -5,6 +5,7 @@ pub type SlotId = u16;
 const HEADER_SIZE: usize = 4;
 const SLOT_SIZE: usize = 4;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlottedPage {
     bytes: [u8; PAGE_SIZE],
 }
@@ -65,10 +66,18 @@ impl SlottedPage {
         ) as usize;
         Some(&self.bytes[offset..offset + length])
     }
+    pub fn into_bytes(self) -> [u8; PAGE_SIZE] {
+        self.bytes
+    }
+    pub fn from_bytes(bytes: [u8; PAGE_SIZE]) -> Self {
+        Self { bytes }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::pager::Pager;
+
     use super::*;
 
     #[test]
@@ -148,5 +157,22 @@ mod tests {
             }
         }
         panic!("its over")
+    }
+    #[test]
+    fn page_survives_round_trip_through_bytes() {
+        let mut page = SlottedPage::new();
+
+        let record_1 = b"first";
+        let record_2 = b"second";
+
+        let slot_id_1 = page.insert(record_1).unwrap();
+        let slot_id_2 = page.insert(record_2).unwrap();
+
+        let bytes = page.into_bytes();
+
+        let restored = SlottedPage::from_bytes(bytes);
+
+        assert_eq!(restored.get(slot_id_1), Some(&record_1[..]));
+        assert_eq!(restored.get(slot_id_2), Some(&record_2[..]));
     }
 }
