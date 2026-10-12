@@ -130,6 +130,12 @@ impl SlottedPage {
     }
 }
 
+impl Default for SlottedPage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::pager::Pager;
