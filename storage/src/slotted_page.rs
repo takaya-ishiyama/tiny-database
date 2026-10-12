@@ -251,27 +251,9 @@ mod tests {
         assert!(!result)
     }
     #[test]
-    fn compact_preserves_existing_records() {
-        let mut page = SlottedPage::new();
-        let record_1 = b"first";
-        let record_2 = b"second";
-        let record_3 = b"third";
-
-        let slot_id_1 = page.insert(record_1).unwrap();
-        let slot_id_2 = page.insert(record_2).unwrap();
-        let slot_id_3 = page.insert(record_3).unwrap();
-
-        assert!(page.delete(&slot_id_2));
-
-        page.compact();
-
-        assert_eq!(page.get(&slot_id_1), Some(&record_1[..]));
-        assert_eq!(page.get(&slot_id_2), None);
-        assert_eq!(page.get(&slot_id_3), Some(&record_3[..]));
-    }
-    #[test]
     fn compact_reclaims_space_from_deleted_records() {
         let mut page = SlottedPage::new();
+        // ヘッダー4バイト、slotが3件の12バイトを足して、全部で4096バイトになる
         let record_1 = vec![1u8; 1000];
         let record_2 = vec![2u8; 1000];
         let record_3 = vec![3u8; 2080];
@@ -281,5 +263,17 @@ mod tests {
         let slot_id_3 = page.insert(&record_3).unwrap();
 
         assert!(page.delete(&slot_id_2));
+
+        assert!(matches!(page.insert(&[9]), Err(Error::PageFull)));
+
+        page.compact();
+
+        let new_record = vec![4u8; 1000];
+        let new_slot = page.insert(&new_record).unwrap();
+
+        assert_eq!(page.get(&slot_id_1), Some(&record_1[..]));
+        assert_eq!(page.get(&slot_id_2), None);
+        assert_eq!(page.get(&slot_id_3), Some(&record_3[..]));
+        assert_eq!(page.get(&new_slot), Some(&new_record[..]));
     }
 }
