@@ -108,18 +108,19 @@ impl SlottedPage {
             };
 
             let new_offset = record_start as u16;
+            let new_length = length as u16;
 
             new_record[record_start..free_end].copy_from_slice(record);
 
             new_record[slot_start..slot_start + 2].copy_from_slice(&new_offset.to_le_bytes());
-            new_record[slot_start + 2..slot_start + 4].copy_from_slice(&length.to_le_bytes());
-
-            let new_free_end = record_start as u16;
-            new_record[0..2].copy_from_slice(&slot_count.to_le_bytes());
-            new_record[2..4].copy_from_slice(&new_free_end.to_le_bytes());
+            new_record[slot_start + 2..slot_start + 4].copy_from_slice(&new_length.to_le_bytes());
 
             free_end = record_start;
         }
+
+        new_record[0..2].copy_from_slice(&(slot_count as u16).to_le_bytes());
+        new_record[2..4].copy_from_slice(&(free_end as u16).to_le_bytes());
+
         self.bytes = new_record;
         Ok(())
     }
@@ -300,7 +301,7 @@ mod tests {
 
         assert!(page.delete(&second));
 
-        page.compact();
+        page.compact().unwrap();
 
         assert_eq!(page.get(&first), Some(&b"first"[..]));
         assert_eq!(page.get(&second), None);
