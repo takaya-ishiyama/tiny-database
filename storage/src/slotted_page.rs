@@ -1,5 +1,4 @@
 use crate::{Error, PAGE_SIZE, Result};
-
 pub type SlotId = u16;
 
 const HEADER_SIZE: usize = 4;
@@ -75,7 +74,7 @@ impl SlottedPage {
         Self { bytes }
     }
     pub fn delete(&mut self, slot_id: &SlotId) -> bool {
-        if self.is_invalid_slot_id(&slot_id) {
+        if self.is_invalid_slot_id(slot_id) {
             return false;
         }
         let slot_start = HEADER_SIZE + *slot_id as usize * SLOT_SIZE;
@@ -118,7 +117,7 @@ impl SlottedPage {
             free_end = record_start;
         }
 
-        new_record[0..2].copy_from_slice(&(slot_count as u16).to_le_bytes());
+        new_record[0..2].copy_from_slice(&slot_count.to_le_bytes());
         new_record[2..4].copy_from_slice(&(free_end as u16).to_le_bytes());
 
         self.bytes = new_record;
