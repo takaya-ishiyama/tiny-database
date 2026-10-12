@@ -251,6 +251,22 @@ mod tests {
         assert!(!result)
     }
     #[test]
+    fn compact_preserves_existing_records() {
+        let mut page = SlottedPage::new();
+
+        let first = page.insert(b"first").unwrap();
+        let second = page.insert(b"second").unwrap();
+        let third = page.insert(b"third").unwrap();
+
+        assert!(page.delete(&second));
+
+        page.compact();
+
+        assert_eq!(page.get(&first), Some(&b"first"[..]));
+        assert_eq!(page.get(&second), None);
+        assert_eq!(page.get(&third), Some(&b"third"[..]));
+    }
+    #[test]
     fn compact_reclaims_space_from_deleted_records() {
         let mut page = SlottedPage::new();
         // ヘッダー4バイト、slotが3件の12バイトを足して、全部で4096バイトになる
