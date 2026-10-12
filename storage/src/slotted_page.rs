@@ -51,11 +51,11 @@ impl SlottedPage {
 
         Ok(slot_id)
     }
-    pub fn get(&self, slot_id: SlotId) -> Option<&[u8]> {
+    pub fn get(&self, slot_id: &SlotId) -> Option<&[u8]> {
         if self.is_invalid_slot_id(slot_id) {
             return None;
         }
-        let slot_start = HEADER_SIZE + slot_id as usize * SLOT_SIZE;
+        let slot_start = HEADER_SIZE + *slot_id as usize * SLOT_SIZE;
         let offset =
             u16::from_le_bytes(self.bytes[slot_start..slot_start + 2].try_into().unwrap()) as usize;
         let length = u16::from_le_bytes(
@@ -74,18 +74,19 @@ impl SlottedPage {
     pub fn from_bytes(bytes: [u8; PAGE_SIZE]) -> Self {
         Self { bytes }
     }
-    pub fn delete(&mut self, slot_id: SlotId) -> bool {
-        if self.is_invalid_slot_id(slot_id) {
+    pub fn delete(&mut self, slot_id: &SlotId) -> bool {
+        if self.is_invalid_slot_id(&slot_id) {
             return false;
         }
-        let slot_start = HEADER_SIZE + slot_id as usize * SLOT_SIZE;
+        let slot_start = HEADER_SIZE + *slot_id as usize * SLOT_SIZE;
         self.bytes[slot_start..slot_start + SLOT_SIZE].fill(0);
         true
     }
+    pub fn compact(&self) -> () {}
 
-    fn is_invalid_slot_id(&self, slot_id: SlotId) -> bool {
+    fn is_invalid_slot_id(&self, slot_id: &SlotId) -> bool {
         let slot_count = u16::from_le_bytes(self.bytes[0..2].try_into().unwrap());
-        slot_id >= slot_count
+        *slot_id >= slot_count
     }
 }
 
@@ -101,7 +102,7 @@ mod tests {
         let record = b"hello";
 
         let slot_id = page.insert(record).unwrap();
-        let loaded = page.get(slot_id);
+        let loaded = page.get(&slot_id);
 
         assert_eq!(slot_id, 0);
         assert_eq!(loaded, Some(&record[..]));
@@ -113,7 +114,7 @@ mod tests {
         let slot_id = page.insert(record).unwrap();
 
         let invalid_slot_id = slot_id + 1;
-        let loaded = page.get(invalid_slot_id);
+        let loaded = page.get(&invalid_slot_id);
 
         assert_eq!(loaded, None);
     }
@@ -125,8 +126,8 @@ mod tests {
         let slot_id_1 = page.insert(record_1).unwrap();
         let slot_id_2 = page.insert(record_2).unwrap();
 
-        let loaded_1 = page.get(slot_id_1).unwrap();
-        let loaded_2 = page.get(slot_id_2).unwrap();
+        let loaded_1 = page.get(&slot_id_1).unwrap();
+        let loaded_2 = page.get(&slot_id_2).unwrap();
 
         assert_eq!(slot_id_1, 0);
         assert_eq!(slot_id_2, 1);
@@ -146,7 +147,7 @@ mod tests {
         let largest = PAGE_SIZE - HEADER_SIZE - SLOT_SIZE; // 4088
         let record = vec![0u8; largest];
         let slot_id = page.insert(&record).unwrap();
-        let loaded = page.get(slot_id);
+        let loaded = page.get(&slot_id);
 
         assert_eq!(slot_id, 0);
         assert_eq!(loaded, Some(&record[..]));
@@ -187,8 +188,8 @@ mod tests {
 
         let restored = SlottedPage::from_bytes(bytes);
 
-        assert_eq!(restored.get(slot_id_1), Some(&record_1[..]));
-        assert_eq!(restored.get(slot_id_2), Some(&record_2[..]));
+        assert_eq!(restored.get(&slot_id_1), Some(&record_1[..]));
+        assert_eq!(restored.get(&slot_id_2), Some(&record_2[..]));
     }
     #[test]
     fn slotted_page_survives_pager_round_trip() {
@@ -210,7 +211,7 @@ mod tests {
         let bytes = pager.read_page(page_id).unwrap();
 
         let restored = SlottedPage::from_bytes(bytes);
-        let restored_record = restored.get(slot_id);
+        let restored_record = restored.get(&slot_id);
 
         assert_eq!(Some(&record[..]), restored_record);
     }
@@ -219,8 +220,8 @@ mod tests {
         let mut page = SlottedPage::new();
         let slot_id = page.insert(b"hello").unwrap();
 
-        assert!(page.delete(slot_id));
-        assert_eq!(page.get(slot_id), None);
+        assert!(page.delete(&slot_id));
+        assert_eq!(page.get(&slot_id), None);
     }
     #[test]
     fn deleting_one_record_does_not_affect_other_records() {
@@ -232,10 +233,10 @@ mod tests {
         let slot_id_1 = page.insert(record_1).unwrap();
         let slot_id_2 = page.insert(record_2).unwrap();
 
-        assert!(page.delete(slot_id_1));
+        assert!(page.delete(&slot_id_1));
 
-        assert_eq!(page.get(slot_id_1), None);
-        assert_eq!(page.get(slot_id_2), Some(&record_2[..]))
+        assert_eq!(page.get(&slot_id_1), None);
+        assert_eq!(page.get(&slot_id_2), Some(&record_2[..]))
     }
     #[test]
     fn deleting_invalid_slot_id_returns_false() {
@@ -245,8 +246,40 @@ mod tests {
 
         let slot_id = page.insert(record).unwrap();
 
-        let result = page.delete(slot_id + 1);
+        let result = page.delete(&(slot_id + 1));
 
         assert!(!result)
+    }
+    #[test]
+    fn compact_preserves_existing_records() {
+        let mut page = SlottedPage::new();
+        let record_1 = b"first";
+        let record_2 = b"second";
+        let record_3 = b"third";
+
+        let slot_id_1 = page.insert(record_1).unwrap();
+        let slot_id_2 = page.insert(record_2).unwrap();
+        let slot_id_3 = page.insert(record_3).unwrap();
+
+        assert!(page.delete(&slot_id_2));
+
+        page.compact();
+
+        assert_eq!(page.get(&slot_id_1), Some(&record_1[..]));
+        assert_eq!(page.get(&slot_id_2), None);
+        assert_eq!(page.get(&slot_id_3), Some(&record_3[..]));
+    }
+    #[test]
+    fn compact_reclaims_space_from_deleted_records() {
+        let mut page = SlottedPage::new();
+        let record_1 = vec![1u8; 1000];
+        let record_2 = vec![2u8; 1000];
+        let record_3 = vec![3u8; 2080];
+
+        let slot_id_1 = page.insert(&record_1).unwrap();
+        let slot_id_2 = page.insert(&record_2).unwrap();
+        let slot_id_3 = page.insert(&record_3).unwrap();
+
+        assert!(page.delete(&slot_id_2));
     }
 }
