@@ -82,7 +82,47 @@ impl SlottedPage {
         self.bytes[slot_start..slot_start + SLOT_SIZE].fill(0);
         true
     }
-    pub fn compact(&self) -> () {}
+    pub fn compact(&mut self) -> Result<()> {
+        let slot_count = u16::from_le_bytes(self.bytes[0..2].try_into().unwrap());
+        let mut free_end = PAGE_SIZE;
+        let mut new_record = [0u8; PAGE_SIZE];
+
+        for i in 0..slot_count {
+            let slot_start = HEADER_SIZE + i as usize * SLOT_SIZE;
+            let offset =
+                u16::from_le_bytes(self.bytes[slot_start..slot_start + 2].try_into().unwrap())
+                    as usize;
+            let length = u16::from_le_bytes(
+                self.bytes[slot_start + 2..slot_start + 4]
+                    .try_into()
+                    .unwrap(),
+            ) as usize;
+
+            if offset == 0 && length == 0 {
+                continue;
+            }
+
+            let record = &self.bytes[offset..offset + length];
+            let Some(record_start) = free_end.checked_sub(record.len()) else {
+                return Err(Error::PageFull);
+            };
+
+            let new_offset = record_start as u16;
+
+            new_record[record_start..free_end].copy_from_slice(record);
+
+            new_record[slot_start..slot_start + 2].copy_from_slice(&new_offset.to_le_bytes());
+            new_record[slot_start + 2..slot_start + 4].copy_from_slice(&length.to_le_bytes());
+
+            let new_free_end = record_start as u16;
+            new_record[0..2].copy_from_slice(&slot_count.to_le_bytes());
+            new_record[2..4].copy_from_slice(&new_free_end.to_le_bytes());
+
+            free_end = record_start;
+        }
+        self.bytes = new_record;
+        Ok(())
+    }
 
     fn is_invalid_slot_id(&self, slot_id: &SlotId) -> bool {
         let slot_count = u16::from_le_bytes(self.bytes[0..2].try_into().unwrap());
@@ -282,9 +322,9 @@ mod tests {
 
         assert!(matches!(page.insert(&[9]), Err(Error::PageFull)));
 
-        page.compact();
+        page.compact().unwrap();
 
-        let new_record = vec![4u8; 1000];
+        let new_record = vec![4u8; 900];
         let new_slot = page.insert(&new_record).unwrap();
 
         assert_eq!(page.get(&slot_id_1), Some(&record_1[..]));
