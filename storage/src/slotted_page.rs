@@ -84,7 +84,7 @@ impl SlottedPage {
     pub fn compact(&mut self) -> Result<()> {
         let slot_count = u16::from_le_bytes(self.bytes[0..2].try_into().unwrap());
         let mut free_end = PAGE_SIZE;
-        let mut new_record = [0u8; PAGE_SIZE];
+        let mut new_page = [0u8; PAGE_SIZE];
 
         for i in 0..slot_count {
             let slot_start = HEADER_SIZE + i as usize * SLOT_SIZE;
@@ -109,18 +109,18 @@ impl SlottedPage {
             let new_offset = record_start as u16;
             let new_length = length as u16;
 
-            new_record[record_start..free_end].copy_from_slice(record);
+            new_page[record_start..free_end].copy_from_slice(record);
 
-            new_record[slot_start..slot_start + 2].copy_from_slice(&new_offset.to_le_bytes());
-            new_record[slot_start + 2..slot_start + 4].copy_from_slice(&new_length.to_le_bytes());
+            new_page[slot_start..slot_start + 2].copy_from_slice(&new_offset.to_le_bytes());
+            new_page[slot_start + 2..slot_start + 4].copy_from_slice(&new_length.to_le_bytes());
 
             free_end = record_start;
         }
 
-        new_record[0..2].copy_from_slice(&slot_count.to_le_bytes());
-        new_record[2..4].copy_from_slice(&(free_end as u16).to_le_bytes());
+        new_page[0..2].copy_from_slice(&slot_count.to_le_bytes());
+        new_page[2..4].copy_from_slice(&(free_end as u16).to_le_bytes());
 
-        self.bytes = new_record;
+        self.bytes = new_page;
         Ok(())
     }
 
