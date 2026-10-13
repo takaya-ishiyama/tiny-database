@@ -70,8 +70,13 @@ impl SlottedPage {
     pub fn into_bytes(self) -> [u8; PAGE_SIZE] {
         self.bytes
     }
-    pub fn from_bytes(bytes: [u8; PAGE_SIZE]) -> Self {
-        Self { bytes }
+    pub fn from_bytes(bytes: [u8; PAGE_SIZE]) -> Result<Self> {
+        let free_end = u16::from_le_bytes(bytes[2..4].try_into().unwrap()) as usize;
+
+        if free_end > PAGE_SIZE {
+            return Err(Error::CorruptedPage("free_end exceeds page boundary"));
+        }
+        Ok(Self { bytes })
     }
     pub fn delete(&mut self, slot_id: &SlotId) -> bool {
         if self.is_invalid_slot_id(slot_id) {
@@ -232,7 +237,7 @@ mod tests {
 
         let bytes = page.into_bytes();
 
-        let restored = SlottedPage::from_bytes(bytes);
+        let restored = SlottedPage::from_bytes(bytes).unwrap();
 
         assert_eq!(restored.get(&slot_id_1), Some(&record_1[..]));
         assert_eq!(restored.get(&slot_id_2), Some(&record_2[..]));
@@ -256,7 +261,7 @@ mod tests {
 
         let bytes = pager.read_page(page_id).unwrap();
 
-        let restored = SlottedPage::from_bytes(bytes);
+        let restored = SlottedPage::from_bytes(bytes).unwrap();
         let restored_record = restored.get(&slot_id);
 
         assert_eq!(Some(&record[..]), restored_record);
@@ -337,5 +342,15 @@ mod tests {
         assert_eq!(page.get(&slot_id_2), None);
         assert_eq!(page.get(&slot_id_3), Some(&record_3[..]));
         assert_eq!(page.get(&new_slot), Some(&new_record[..]));
+    }
+    #[test]
+    fn from_bytes_rejects_free_end_past_page_boundary() {
+        let page = SlottedPage::new();
+        let mut bytes = page.bytes;
+        bytes[2..4].copy_from_slice(&(4097 as u16).to_le_bytes());
+        assert!(matches!(
+            SlottedPage::from_bytes(bytes),
+            Err(Error::CorruptedPage(..))
+        ));
     }
 }
