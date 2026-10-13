@@ -97,6 +97,9 @@ impl SlottedPage {
             if offset == 0 && length == 0 {
                 continue;
             }
+            if offset < free_end {
+                return Err(Error::CorruptedPage("record starts before free_end"));
+            }
 
             let Some(record_end) = offset.checked_add(length) else {
                 return Err(Error::CorruptedPage("record offset overflow"));
@@ -398,13 +401,10 @@ mod tests {
     #[test]
     fn from_bytes_rejects_slot_directory_overlapping_record_area() {
         let page = SlottedPage::new();
-        let mut bytes = page.bytes;
+        let mut bytes = page.into_bytes();
 
-        let slot_directory_end = 4 + 1 * 4;
-        let free_end = 4;
-
-        bytes[0..2].copy_from_slice(&(slot_directory_end as u16).to_le_bytes());
-        bytes[2..4].copy_from_slice(&(free_end as u16).to_le_bytes());
+        bytes[0..2].copy_from_slice(&1_u16.to_le_bytes());
+        bytes[2..4].copy_from_slice(&4_u16.to_le_bytes());
 
         assert!(matches!(
             SlottedPage::from_bytes(bytes),
@@ -419,6 +419,21 @@ mod tests {
         bytes[0..2].copy_from_slice(&1_u16.to_le_bytes());
         bytes[2..4].copy_from_slice(&4090_u16.to_le_bytes());
         bytes[4..6].copy_from_slice(&4090_u16.to_le_bytes());
+        bytes[6..8].copy_from_slice(&10_u16.to_le_bytes());
+
+        assert!(matches!(
+            SlottedPage::from_bytes(bytes),
+            Err(Error::CorruptedPage(..))
+        ));
+    }
+    #[test]
+    fn from_bytes_rejects_record_before_free_end() {
+        let page = SlottedPage::new();
+        let mut bytes = page.into_bytes();
+
+        bytes[0..2].copy_from_slice(&1_u16.to_le_bytes());
+        bytes[2..4].copy_from_slice(&100_u16.to_le_bytes());
+        bytes[4..6].copy_from_slice(&50_u16.to_le_bytes());
         bytes[6..8].copy_from_slice(&10_u16.to_le_bytes());
 
         assert!(matches!(
