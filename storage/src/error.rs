@@ -18,6 +18,8 @@ pub enum Error {
     ChecksumMismatch { expected: u32, actual: u32 },
     /// Record metadata is invalid even though all required bytes are present.
     CorruptedRecord(&'static str),
+    /// Slotted-page metadata points outside the page or is otherwise inconsistent.
+    CorruptedPage(&'static str),
     /// The requested page is outside the bounds of the file.
     PageOutOfBounds { page_id: u64, page_count: u64 },
     /// The page region after the file header is not page-aligned.
@@ -55,6 +57,7 @@ impl fmt::Display for Error {
                 "record checksum mismatch: expected {expected:#010x}, calculated {actual:#010x}"
             ),
             Self::CorruptedRecord(reason) => write!(f, "corrupted record: {reason}"),
+            Self::CorruptedPage(reason) => write!(f, "corrupted page: {reason}"),
             Self::PageOutOfBounds {
                 page_id,
                 page_count,
