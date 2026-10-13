@@ -71,11 +71,21 @@ impl SlottedPage {
         self.bytes
     }
     pub fn from_bytes(bytes: [u8; PAGE_SIZE]) -> Result<Self> {
+        let slot_count = u16::from_le_bytes(bytes[0..2].try_into().unwrap()) as usize;
         let free_end = u16::from_le_bytes(bytes[2..4].try_into().unwrap()) as usize;
 
+        let slot_directory_end = HEADER_SIZE + slot_count * SLOT_SIZE;
+
+        if PAGE_SIZE < slot_directory_end {
+            return Err(Error::CorruptedPage("slot count exceeds page boundary"));
+        }
         if free_end > PAGE_SIZE {
             return Err(Error::CorruptedPage("free_end exceeds page boundary"));
         }
+        if slot_directory_end > free_end {
+            return Err(Error::CorruptedPage("slot directory overlaps record area"));
+        }
+
         Ok(Self { bytes })
     }
     pub fn delete(&mut self, slot_id: &SlotId) -> bool {
@@ -347,7 +357,19 @@ mod tests {
     fn from_bytes_rejects_free_end_past_page_boundary() {
         let page = SlottedPage::new();
         let mut bytes = page.bytes;
-        bytes[2..4].copy_from_slice(&(4097 as u16).to_le_bytes());
+        bytes[2..4].copy_from_slice(&4097_u16.to_le_bytes());
+        assert!(matches!(
+            SlottedPage::from_bytes(bytes),
+            Err(Error::CorruptedPage(..))
+        ));
+    }
+    #[test]
+    fn from_bytes_rejects_slot_directory_past_page_boundary() {
+        let page = SlottedPage::new();
+        let mut bytes = page.bytes;
+        // slot directoryがページ境界値を超える件数
+        let invalid_slot_count = 2000;
+        bytes[0..2].copy_from_slice(&(invalid_slot_count as u16).to_le_bytes());
         assert!(matches!(
             SlottedPage::from_bytes(bytes),
             Err(Error::CorruptedPage(..))
