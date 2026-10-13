@@ -74,13 +74,6 @@ impl SlottedPage {
         let slot_count = u16::from_le_bytes(bytes[0..2].try_into().unwrap()) as usize;
         let free_end = u16::from_le_bytes(bytes[2..4].try_into().unwrap()) as usize;
 
-        let slot_start = HEADER_SIZE + slot_count * SLOT_SIZE;
-
-        let offset =
-            u16::from_le_bytes(bytes[slot_start..slot_start + 2].try_into().unwrap()) as usize;
-        let length =
-            u16::from_le_bytes(bytes[slot_start + 2..slot_start + 4].try_into().unwrap()) as usize;
-
         let slot_directory_end = HEADER_SIZE + slot_count * SLOT_SIZE;
 
         if PAGE_SIZE < slot_directory_end {
@@ -92,11 +85,25 @@ impl SlottedPage {
         if slot_directory_end > free_end {
             return Err(Error::CorruptedPage("slot directory overlaps record area"));
         }
-        let Some(end) = offset.checked_add(length) else {
-            return Err(Error::CorruptedPage("offset overflow"));
-        };
-        if usize::from(end) > PAGE_SIZE {
-            return Err(Error::CorruptedPage("record exceeds page boundary"));
+
+        for slot_id in 0..slot_count {
+            let slot_start = HEADER_SIZE + slot_id * SLOT_SIZE;
+            let offset =
+                u16::from_le_bytes(bytes[slot_start..slot_start + 2].try_into().unwrap()) as usize;
+            let length =
+                u16::from_le_bytes(bytes[slot_start + 2..slot_start + 4].try_into().unwrap())
+                    as usize;
+
+            if offset == 0 && length == 0 {
+                continue;
+            }
+
+            let Some(record_end) = offset.checked_add(length) else {
+                return Err(Error::CorruptedPage("record offset overflow"));
+            };
+            if record_end > PAGE_SIZE {
+                return Err(Error::CorruptedPage("record exceeds page boundary"));
+            }
         }
 
         Ok(Self { bytes })
