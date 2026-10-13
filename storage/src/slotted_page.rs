@@ -375,4 +375,20 @@ mod tests {
             Err(Error::CorruptedPage(..))
         ));
     }
+    #[test]
+    fn from_bytes_rejects_slot_directory_overlapping_record_area() {
+        let page = SlottedPage::new();
+        let mut bytes = page.bytes;
+
+        let slot_directory_end = 4 + 1 * 4;
+        let free_end = 4;
+
+        bytes[0..2].copy_from_slice(&(slot_directory_end as u16).to_le_bytes());
+        bytes[2..4].copy_from_slice(&(free_end as u16).to_le_bytes());
+
+        assert!(matches!(
+            SlottedPage::from_bytes(bytes),
+            Err(Error::CorruptedPage(..))
+        ));
+    }
 }
