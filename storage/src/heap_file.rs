@@ -61,6 +61,8 @@ impl HeapFile {
 mod tests {
     use tempfile;
 
+    use crate::PAGE_SIZE;
+
     use super::*;
 
     #[test]
@@ -120,5 +122,23 @@ mod tests {
         let loaded_2 = heap_file.get(record_id_2).unwrap();
         assert_eq!(loaded_1, Some(b"first".to_vec()));
         assert_eq!(loaded_2, Some(b"second".to_vec()));
+    }
+
+    #[test]
+    fn allocates_new_page_when_existing_pages_are_full() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        let mut heap_file = HeapFile::open(&path).unwrap();
+
+        let large_record = vec![1u8; PAGE_SIZE - 8];
+        let first = heap_file.insert(&large_record).unwrap();
+
+        let second = heap_file.insert(b"second").unwrap();
+
+        assert_eq!(first.page_id, 0);
+        assert_eq!(first.slot_id, 0);
+        assert_eq!(second.page_id, 1);
+        assert_eq!(second.slot_id, 0);
     }
 }
