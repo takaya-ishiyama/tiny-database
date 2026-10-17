@@ -5,6 +5,7 @@ use crate::pager::Pager;
 use crate::slotted_page::SlottedPage;
 use crate::{pager::PageId, slotted_page::SlotId};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RecordId {
     pub page_id: PageId,
     pub slot_id: SlotId,
