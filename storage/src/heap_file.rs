@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::Error::PageFull;
 use crate::Result;
 use crate::pager::Pager;
 use crate::slotted_page::SlottedPage;
@@ -21,6 +22,22 @@ impl HeapFile {
         Ok(Self { pager })
     }
     pub fn insert(&mut self, record: &[u8]) -> Result<RecordId> {
+        let page_count = self.pager.page_count()?;
+
+        for page_id in 0..page_count {
+            let bytes = self.pager.read_page(page_id)?;
+            let mut page = SlottedPage::from_bytes(bytes)?;
+
+            match page.insert(record) {
+                Ok(slot_id) => {
+                    self.pager.write_page(page_id, &page.into_bytes())?;
+                    return Ok(RecordId { page_id, slot_id });
+                }
+                Err(PageFull) => continue,
+                Err(e) => return Err(e),
+            }
+        }
+
         let page_id = self.pager.allocate_page()?;
         let mut page = SlottedPage::new();
         let slot_id = page.insert(record)?;

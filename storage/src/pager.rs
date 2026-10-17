@@ -165,7 +165,7 @@ impl Pager {
 
         Ok(())
     }
-    fn page_count(&self) -> Result<u64> {
+    pub fn page_count(&self) -> Result<u64> {
         let file_size = self.file.metadata()?.len();
         Ok((file_size - FILE_HEADER_SIZE) / PAGE_SIZE as u64)
     }
