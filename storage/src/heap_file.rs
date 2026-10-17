@@ -14,8 +14,6 @@ pub struct HeapFile {
     pub pager: Pager,
 }
 
-impl RecordId {}
-
 impl HeapFile {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let pager = Pager::open(&path)?;
