@@ -74,4 +74,34 @@ mod tests {
 
         assert_eq!(loaded, Some(b"hello".to_vec()));
     }
+    #[test]
+    fn multiple_records_share_page_when_they_fit() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        let mut heap_file = HeapFile::open(&path).unwrap();
+
+        let record_id_1 = heap_file.insert(b"first").unwrap();
+        let record_id_2 = heap_file.insert(b"second").unwrap();
+
+        assert_eq!(
+            record_id_1,
+            RecordId {
+                page_id: 0,
+                slot_id: 0
+            }
+        );
+        assert_eq!(
+            record_id_2,
+            RecordId {
+                page_id: 0,
+                slot_id: 1
+            }
+        );
+
+        let loaded_1 = heap_file.get(record_id_1).unwrap();
+        let loaded_2 = heap_file.get(record_id_2).unwrap();
+        assert_eq!(loaded_1, Some(b"first".to_vec()));
+        assert_eq!(loaded_2, Some(b"second".to_vec()));
+    }
 }
