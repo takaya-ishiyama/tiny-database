@@ -116,6 +116,10 @@ impl SlottedPage {
             return false;
         }
         let slot_start = HEADER_SIZE + *slot_id as usize * SLOT_SIZE;
+        /* 削除したレコードのRIDを仕様させないためslotの4バイトを0埋めしている
+        slotの4バイトは永続的に残ってしまう問題が残っている
+        レコード本体はcompactで消している
+        */
         self.bytes[slot_start..slot_start + SLOT_SIZE].fill(0);
         true
     }
