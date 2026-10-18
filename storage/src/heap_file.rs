@@ -163,4 +163,20 @@ mod tests {
         assert!(heap_file.delete(record_id).unwrap());
         assert_eq!(heap_file.get(record_id).unwrap(), None);
     }
+    #[test]
+    fn deleting_invalid_record_id_returns_false() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        let mut heap_file = HeapFile::open(&path).unwrap();
+
+        // page_id = 0, record_id = 0
+        let mut record_id = heap_file.insert(b"hello").unwrap();
+
+        record_id.slot_id = 1;
+
+        assert!(!heap_file.delete(record_id).unwrap());
+    }
+    #[test]
+    fn deletion_survives_reopening_heap_file() {}
 }
