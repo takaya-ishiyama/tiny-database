@@ -61,6 +61,15 @@ impl HeapFile {
         if !page.delete(&record_id.slot_id) {
             return Ok(false);
         };
+
+        /*
+          insertでpage fullのときだけcompactするほうが効率的だが、
+          insert時に0ページからすべて書き込み可能かを見ているためpage fullでcompactするととても重い処理になる可能性がある。
+          そのためdeleteでcompactすることとする。
+        */
+        /* 今後、ページごとの空き容量やフラグメント管理ができるようになったら改善する */
+        page.compact()?;
+
         self.pager
             .write_page(record_id.page_id, &page.into_bytes())?;
         Ok(true)
@@ -193,5 +202,30 @@ mod tests {
         let mut reopen_heap_file = HeapFile::open(&path).unwrap();
 
         assert_eq!(reopen_heap_file.get(record_id).unwrap(), None);
+    }
+    #[test]
+    fn reuses_space_from_deleted_record() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        let mut heap_file = HeapFile::open(&path).unwrap();
+
+        let bytes = vec![1u8; PAGE_SIZE - 8];
+        let record_id = heap_file.insert(&bytes).unwrap();
+
+        heap_file.delete(record_id).unwrap();
+
+        let replacement = vec![2u8; 4000];
+
+        let replacement_id = heap_file.insert(&replacement).unwrap();
+
+        assert_eq!(
+            replacement_id,
+            RecordId {
+                page_id: 0,
+                slot_id: 0,
+            }
+        );
+        assert_eq!(heap_file.get(replacement_id).unwrap(), Some(replacement));
     }
 }
