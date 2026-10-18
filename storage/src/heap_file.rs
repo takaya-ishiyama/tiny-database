@@ -55,6 +55,14 @@ impl HeapFile {
 
         Ok(record)
     }
+    pub fn delete(&mut self, record_id: RecordId) -> Result<bool> {
+        let bytes = self.pager.read_page(record_id.page_id)?;
+        let mut page = SlottedPage::from_bytes(bytes)?;
+        page.delete(&record_id.slot_id);
+        self.pager
+            .write_page(record_id.page_id, &page.into_bytes())?;
+        Ok(true)
+    }
 }
 
 #[cfg(test)]
@@ -140,5 +148,17 @@ mod tests {
         assert_eq!(first.slot_id, 0);
         assert_eq!(second.page_id, 1);
         assert_eq!(second.slot_id, 0);
+    }
+    #[test]
+    fn deleted_record_cannot_be_read_by_record_id() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        let mut heap_file = HeapFile::open(&path).unwrap();
+
+        let record_id = heap_file.insert(b"hello").unwrap();
+
+        assert!(heap_file.delete(record_id).unwrap());
+        assert_eq!(heap_file.get(record_id).unwrap(), None);
     }
 }
