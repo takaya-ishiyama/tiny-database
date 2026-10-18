@@ -6,3 +6,6 @@ members = [
     "transaction",
     "cli"
 ]
+
+[workspace.dependencies]
+storage = { path = "storage" }

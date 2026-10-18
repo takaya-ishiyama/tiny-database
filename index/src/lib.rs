@@ -1,14 +1,14 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn inserted_value_can_be_found_by_key() {
+        let mut tree = BPlusTree::new();
+
+        tree.insert(b"name".to_vec(), record_id);
+        let found = tree.get(b"name");
+
+        assert_eq!(found, Some(record_id));
     }
 }

@@ -57,6 +57,9 @@ dependencies = [
 [[package]]
 name = "index"
 version = "0.1.0"
+dependencies = [
+ "storage",
+]
 
 [[package]]
 name = "libc"
