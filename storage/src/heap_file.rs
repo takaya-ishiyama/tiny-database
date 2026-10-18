@@ -58,7 +58,9 @@ impl HeapFile {
     pub fn delete(&mut self, record_id: RecordId) -> Result<bool> {
         let bytes = self.pager.read_page(record_id.page_id)?;
         let mut page = SlottedPage::from_bytes(bytes)?;
-        page.delete(&record_id.slot_id);
+        if !page.delete(&record_id.slot_id) {
+            return Ok(false);
+        };
         self.pager
             .write_page(record_id.page_id, &page.into_bytes())?;
         Ok(true)
