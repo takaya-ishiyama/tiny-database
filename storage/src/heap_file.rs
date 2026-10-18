@@ -223,7 +223,7 @@ mod tests {
             replacement_id,
             RecordId {
                 page_id: 0,
-                slot_id: 0,
+                slot_id: 1,
             }
         );
         assert_eq!(heap_file.get(replacement_id).unwrap(), Some(replacement));
