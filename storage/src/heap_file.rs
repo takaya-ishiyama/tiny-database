@@ -178,5 +178,20 @@ mod tests {
         assert!(!heap_file.delete(record_id).unwrap());
     }
     #[test]
-    fn deletion_survives_reopening_heap_file() {}
+    fn deletion_survives_reopening_heap_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("database.pages");
+
+        let mut heap_file = HeapFile::open(&path).unwrap();
+
+        let record_id = heap_file.insert(b"hello").unwrap();
+
+        heap_file.delete(record_id).unwrap();
+
+        drop(heap_file);
+
+        let mut reopen_heap_file = HeapFile::open(&path).unwrap();
+
+        assert_eq!(reopen_heap_file.get(record_id).unwrap(), None);
+    }
 }
