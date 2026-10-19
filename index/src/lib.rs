@@ -48,10 +48,13 @@ impl LeafNode {
         };
     }
     fn get(&self, key: &[u8]) -> Option<RecordId> {
-        self.entries
-            .iter()
-            .find(|entry| entry.key.as_slice() == key)
-            .map(|entry| entry.record_id)
+        match self
+            .entries
+            .binary_search_by(|entry| entry.key.as_slice().cmp(key))
+        {
+            Ok(index) => return Some(self.entries[index].record_id),
+            Err(_) => None,
+        }
     }
 }
 
