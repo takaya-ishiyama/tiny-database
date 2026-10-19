@@ -1,20 +1,51 @@
 use storage::heap_file::RecordId;
 
-struct BPlusTree {}
+pub struct BPlusTree {
+    root: LeafNode,
+}
 
 struct LeafNode {
-    key: u8,
-    recode_id: RecordId,
+    entries: Vec<Entry>,
+}
+
+struct Entry {
+    key: Vec<u8>,
+    record_id: RecordId,
 }
 
 impl BPlusTree {
+    pub fn new() -> Self {
+        BPlusTree {
+            root: LeafNode::new(),
+        }
+    }
+    pub fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
+        self.root.insert(key, record_id);
+    }
+    pub fn get(&self, key: &[u8]) -> Option<RecordId> {
+        self.root.get(key)
+    }
+}
+impl Default for BPlusTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl LeafNode {
     fn new() -> Self {
-        BPlusTree {}
+        LeafNode { entries: vec![] }
     }
-    fn insert(&self, record: Vec<u8>, record_id: RecordId) {
-        todo!()
+    fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
+        let entry = Entry { key, record_id };
+        self.entries.push(entry);
     }
-    fn get(&self,)
+    fn get(&self, key: &[u8]) -> Option<RecordId> {
+        self.entries
+            .iter()
+            .find(|entry| entry.key.as_slice() == key)
+            .map(|entry| entry.record_id)
+    }
 }
 
 #[cfg(test)]
