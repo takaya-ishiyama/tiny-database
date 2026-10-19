@@ -52,7 +52,7 @@ impl LeafNode {
             .entries
             .binary_search_by(|entry| entry.key.as_slice().cmp(key))
         {
-            Ok(index) => return Some(self.entries[index].record_id),
+            Ok(index) => Some(self.entries[index].record_id),
             Err(_) => None,
         }
     }
