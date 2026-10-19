@@ -37,14 +37,15 @@ impl LeafNode {
         LeafNode { entries: vec![] }
     }
     fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
-        let index = self
-            .entries
-            .binary_search_by(|entry| entry.key.cmp(&key))
-            .unwrap_or_else(|index| index);
-
-        let entry = Entry { key, record_id };
-
-        self.entries.insert(index, entry);
+        match self.entries.binary_search_by(|entry| entry.key.cmp(&key)) {
+            Ok(index) => {
+                self.entries[index].record_id = record_id;
+            }
+            Err(index) => {
+                let entry = Entry { key, record_id };
+                self.entries.insert(index, entry);
+            }
+        };
     }
     fn get(&self, key: &[u8]) -> Option<RecordId> {
         self.entries
@@ -122,5 +123,31 @@ mod tests {
             keys,
             vec![b"age".as_slice(), b"name".as_slice(), b"zip".as_slice(),]
         );
+    }
+    #[test]
+    fn inserting_existing_key_replaces_record_id() {
+        let mut tree = BPlusTree::new();
+
+        let record_id_1 = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+        let record_id_2 = RecordId {
+            page_id: 0,
+            slot_id: 1,
+        };
+
+        tree.insert(b"name".to_vec(), record_id_1);
+        tree.insert(b"name".to_vec(), record_id_2);
+
+        let keys: Vec<&[u8]> = tree
+            .root
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_slice())
+            .collect();
+
+        assert_eq!(keys, vec![b"name".as_slice()]);
+        assert_eq!(tree.get(b"name"), Some(record_id_2));
     }
 }
