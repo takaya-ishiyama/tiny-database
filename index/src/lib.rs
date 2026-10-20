@@ -56,6 +56,13 @@ impl LeafNode {
             Err(_) => None,
         }
     }
+    fn split(&mut self) -> LeafNode {
+        let split_point = self.entries.len() / 2;
+        let right_entries = self.entries.split_off(split_point);
+        LeafNode {
+            entries: right_entries,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -152,5 +159,37 @@ mod tests {
 
         assert_eq!(keys, vec![b"name".as_slice()]);
         assert_eq!(tree.get(b"name"), Some(record_id_2));
+    }
+    #[test]
+    fn leaf_split_divides_entries_in_key_order() {
+        let mut tree = BPlusTree::new();
+
+        let record_id = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+
+        tree.insert(b"name".to_vec(), record_id);
+        tree.insert(b"birth".to_vec(), record_id);
+        tree.insert(b"age".to_vec(), record_id);
+        tree.insert(b"address".to_vec(), record_id);
+
+        let right = tree.root.split();
+
+        let left_keys: Vec<&[u8]> = tree
+            .root
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_slice())
+            .collect();
+
+        let right_keys: Vec<&[u8]> = right
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_slice())
+            .collect();
+
+        assert_eq!(left_keys, vec![b"address".as_slice(), b"age".as_slice()]);
+        assert_eq!(right_keys, vec![b"birth".as_slice(), b"name".as_slice()]);
     }
 }
