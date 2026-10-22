@@ -1,11 +1,21 @@
 use storage::heap_file::RecordId;
 
+enum Node {
+    Leaf(LeafNode),
+    Internal(InternalNode),
+}
+
 pub struct BPlusTree {
-    root: LeafNode,
+    root: Node,
 }
 
 struct LeafNode {
     entries: Vec<Entry>,
+}
+
+pub struct InternalNode {
+    keys: Vec<Vec<u8>>,
+    children: Vec<Node>,
 }
 
 struct Entry {
@@ -31,6 +41,8 @@ impl Default for BPlusTree {
         Self::new()
     }
 }
+
+impl InternalNode {}
 
 impl LeafNode {
     fn new() -> Self {
@@ -191,5 +203,65 @@ mod tests {
 
         assert_eq!(left_keys, vec![b"address".as_slice(), b"age".as_slice()]);
         assert_eq!(right_keys, vec![b"birth".as_slice(), b"name".as_slice()]);
+    }
+    #[test]
+    fn inserting_past_leaf_capacity_splits_root() {
+        let mut tree = BPlusTree::new();
+
+        let address_id = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+        let age_id = RecordId {
+            page_id: 0,
+            slot_id: 1,
+        };
+        let birth_id = RecordId {
+            page_id: 0,
+            slot_id: 2,
+        };
+        let name_id = RecordId {
+            page_id: 0,
+            slot_id: 3,
+        };
+
+        tree.insert(b"name".to_vec(), name_id);
+        tree.insert(b"birth".to_vec(), birth_id);
+        tree.insert(b"age".to_vec(), age_id);
+        tree.insert(b"address".to_vec(), address_id);
+
+        let Node::Internal(root) = &tree.root else {
+            panic!("root should become an internal node after the leaf splits");
+        };
+
+        let separator_keys: Vec<&[u8]> = root.keys.iter().map(|key| key.as_slice()).collect();
+        assert_eq!(separator_keys, vec![b"birth".as_slice()]);
+        assert_eq!(root.children.len(), 2);
+
+        let Node::Leaf(left) = &root.children[0] else {
+            panic!("left child should be a leaf");
+        };
+        let Node::Leaf(right) = &root.children[1] else {
+            panic!("right child should be a leaf");
+        };
+
+        let left_keys: Vec<&[u8]> = left
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_slice())
+            .collect();
+        let right_keys: Vec<&[u8]> = right
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_slice())
+            .collect();
+
+        assert_eq!(left_keys, vec![b"address".as_slice(), b"age".as_slice()]);
+        assert_eq!(right_keys, vec![b"birth".as_slice(), b"name".as_slice()]);
+
+        assert_eq!(tree.get(b"address"), Some(address_id));
+        assert_eq!(tree.get(b"age"), Some(age_id));
+        assert_eq!(tree.get(b"birth"), Some(birth_id));
+        assert_eq!(tree.get(b"name"), Some(name_id));
     }
 }
