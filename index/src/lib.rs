@@ -26,7 +26,7 @@ struct Entry {
 impl BPlusTree {
     pub fn new() -> Self {
         BPlusTree {
-            root: LeafNode::new(),
+            root: Node::Leaf(LeafNode::new()),
         }
     }
     pub fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
@@ -42,7 +42,26 @@ impl Default for BPlusTree {
     }
 }
 
-impl InternalNode {}
+impl Node {
+    fn get(&self, key: &[u8]) -> Option<RecordId> {
+        match self {
+            Node::Leaf(leaf) => leaf.get(key),
+            Node::Internal(internal) => internal.get(key),
+        }
+    }
+}
+
+impl InternalNode {
+    fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
+        todo!()
+    }
+    fn get(&self, key: &[u8]) -> Option<RecordId> {
+        let child_index = self
+            .keys
+            .partition_point(|separator| separator.as_slice() <= key);
+        self.children[child_index].get(key)
+    }
+}
 
 impl LeafNode {
     fn new() -> Self {
