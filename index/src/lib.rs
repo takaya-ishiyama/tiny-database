@@ -1,5 +1,7 @@
 use storage::heap_file::RecordId;
 
+const MAX_LEAF_ENTRIES: usize = 3;
+
 enum Node {
     Leaf(LeafNode),
     Internal(InternalNode),
@@ -30,7 +32,17 @@ impl BPlusTree {
         }
     }
     pub fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
-        self.root.insert(key, record_id);
+        match self {
+            Node::Leaf(leaf) => {
+                leaf.insert(key, record_id);
+                if leaf.entries.len() >= MAX_LEAF_ENTRIES {
+                    leaf.split();
+                }
+            }
+            Node::Internal(internal) => {
+                internal.insert(key, record_id);
+            }
+        }
     }
     pub fn get(&self, key: &[u8]) -> Option<RecordId> {
         self.root.get(key)
@@ -52,6 +64,12 @@ impl Node {
 }
 
 impl InternalNode {
+    fn new() -> Self {
+        InternalNode {
+            keys: vec![],
+            children: vec![],
+        }
+    }
     fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
         todo!()
     }
@@ -87,12 +105,22 @@ impl LeafNode {
             Err(_) => None,
         }
     }
-    fn split(&mut self) -> LeafNode {
+    fn split(&mut self) -> Node {
         let split_point = self.entries.len() / 2;
         let right_entries = self.entries.split_off(split_point);
-        LeafNode {
-            entries: right_entries,
-        }
+        let left_entries = std::mem::take(&mut self.entries);
+        let separator_key = right_entries[0].key.clone();
+        Node::Internal(InternalNode {
+            keys: vec![separator_key],
+            children: vec![
+                Node::Leaf(LeafNode {
+                    entries: left_entries,
+                }),
+                Node::Leaf(LeafNode {
+                    entries: right_entries,
+                }),
+            ],
+        })
     }
 }
 
