@@ -367,4 +367,91 @@ mod tests {
         assert_eq!(tree.get(b"phone_number"), Some(record_id_2));
         assert_eq!(tree.get(b"fizz"), Some(record_id_3));
     }
+    #[test]
+    fn inserting_past_child_leaf_capacity_splits_child() {
+        let mut tree = BPlusTree::new();
+
+        let record_ids = [
+            RecordId {
+                page_id: 0,
+                slot_id: 0,
+            },
+            RecordId {
+                page_id: 0,
+                slot_id: 1,
+            },
+            RecordId {
+                page_id: 0,
+                slot_id: 2,
+            },
+            RecordId {
+                page_id: 0,
+                slot_id: 3,
+            },
+            RecordId {
+                page_id: 0,
+                slot_id: 4,
+            },
+            RecordId {
+                page_id: 0,
+                slot_id: 5,
+            },
+        ];
+
+        for (key, record_id) in [b"a", b"b", b"c", b"d", b"e", b"f"]
+            .into_iter()
+            .zip(record_ids)
+        {
+            tree.insert(key.to_vec(), record_id);
+        }
+
+        let Node::Internal(root) = &tree.root else {
+            panic!("root should be an internal node");
+        };
+
+        let separator_keys: Vec<&[u8]> =
+            root.keys.iter().map(|key| key.as_slice()).collect();
+        assert_eq!(
+            separator_keys,
+            vec![b"c".as_slice(), b"e".as_slice()]
+        );
+        assert_eq!(root.children.len(), 3);
+
+        let Node::Leaf(left) = &root.children[0] else {
+            panic!("left child should be a leaf");
+        };
+        let Node::Leaf(middle) = &root.children[1] else {
+            panic!("middle child should be a leaf");
+        };
+        let Node::Leaf(right) = &root.children[2] else {
+            panic!("right child should be a leaf");
+        };
+
+        let left_keys: Vec<&[u8]> = left
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_slice())
+            .collect();
+        let middle_keys: Vec<&[u8]> = middle
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_slice())
+            .collect();
+        let right_keys: Vec<&[u8]> = right
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_slice())
+            .collect();
+
+        assert_eq!(left_keys, vec![b"a".as_slice(), b"b".as_slice()]);
+        assert_eq!(middle_keys, vec![b"c".as_slice(), b"d".as_slice()]);
+        assert_eq!(right_keys, vec![b"e".as_slice(), b"f".as_slice()]);
+
+        for (key, record_id) in [b"a", b"b", b"c", b"d", b"e", b"f"]
+            .into_iter()
+            .zip(record_ids)
+        {
+            assert_eq!(tree.get(key), Some(record_id));
+        }
+    }
 }
