@@ -32,16 +32,29 @@ impl BPlusTree {
         }
     }
     pub fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
-        match self {
+        let should_split = match &mut self.root {
             Node::Leaf(leaf) => {
                 leaf.insert(key, record_id);
-                if leaf.entries.len() >= MAX_LEAF_ENTRIES {
-                    leaf.split();
-                }
+                leaf.entries.len() > MAX_LEAF_ENTRIES
             }
             Node::Internal(internal) => {
                 internal.insert(key, record_id);
+                return;
             }
+        };
+        if should_split {
+            let old_root = std::mem::replace(&mut self.root, Node::Leaf(LeafNode::new()));
+
+            let Node::Leaf(mut left_leaf) = old_root else {
+                unreachable!();
+            };
+
+            let (separator_key, right_leaf) = left_leaf.split();
+
+            self.root = Node::Internal(InternalNode {
+                keys: vec![separator_key],
+                children: vec![Node::Leaf(left_leaf), Node::Leaf(right_leaf)],
+            })
         }
     }
     pub fn get(&self, key: &[u8]) -> Option<RecordId> {
@@ -105,22 +118,16 @@ impl LeafNode {
             Err(_) => None,
         }
     }
-    fn split(&mut self) -> Node {
+    fn split(&mut self) -> (Vec<u8>, LeafNode) {
         let split_point = self.entries.len() / 2;
         let right_entries = self.entries.split_off(split_point);
-        let left_entries = std::mem::take(&mut self.entries);
+
         let separator_key = right_entries[0].key.clone();
-        Node::Internal(InternalNode {
-            keys: vec![separator_key],
-            children: vec![
-                Node::Leaf(LeafNode {
-                    entries: left_entries,
-                }),
-                Node::Leaf(LeafNode {
-                    entries: right_entries,
-                }),
-            ],
-        })
+        let right_leaf = LeafNode {
+            entries: right_entries,
+        };
+
+        (separator_key, right_leaf)
     }
 }
 
