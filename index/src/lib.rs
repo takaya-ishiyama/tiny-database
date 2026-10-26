@@ -332,4 +332,34 @@ mod tests {
         assert_eq!(tree.get(b"birth"), Some(birth_id));
         assert_eq!(tree.get(b"name"), Some(name_id));
     }
+    #[test]
+    fn inserting_into_internal_root_adds_value_to_correct_leaf() {
+        let mut tree = BPlusTree::new();
+
+        let record_id = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+
+        // 4件でセパレート
+        tree.insert(b"age".to_vec(), record_id);
+        tree.insert(b"birth".to_vec(), record_id);
+        tree.insert(b"name".to_vec(), record_id);
+        tree.insert(b"zip".to_vec(), record_id);
+
+        // 5件目以降
+        let record_id_2 = RecordId {
+            page_id: 0,
+            slot_id: 1,
+        };
+        let record_id_3 = RecordId {
+            page_id: 0,
+            slot_id: 2,
+        };
+        tree.insert(b"phone_number".to_vec(), record_id_2);
+        tree.insert(b"fizz".to_vec(), record_id_3);
+
+        assert_eq!(tree.get(b"phone_number"), Some(record_id_2));
+        assert_eq!(tree.get(b"fizz"), Some(record_id_3));
+    }
 }
