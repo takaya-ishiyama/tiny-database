@@ -84,7 +84,22 @@ impl InternalNode {
         }
     }
     fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
-        todo!()
+        let child_index = self
+            .keys
+            .partition_point(|separator| separator.as_slice() <= &key);
+        match &mut self.children[child_index] {
+            Node::Leaf(leaf) => {
+                leaf.insert(key, record_id);
+                if leaf.entries.len() <= MAX_LEAF_ENTRIES {
+                    return;
+                }
+                let (separator_key, right_leaf) = leaf.split();
+                self.keys.insert(child_index, separator_key);
+                self.children
+                    .insert(child_index + 1, Node::Leaf(right_leaf));
+            }
+            Node::Internal(internal) => internal.insert(key, record_id),
+        }
     }
     fn get(&self, key: &[u8]) -> Option<RecordId> {
         let child_index = self
