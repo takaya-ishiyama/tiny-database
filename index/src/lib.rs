@@ -203,8 +203,11 @@ mod tests {
         tree.insert(b"zip".to_vec(), record_id);
         tree.insert(b"age".to_vec(), record_id);
 
-        let keys: Vec<&[u8]> = tree
-            .root
+        let Node::Leaf(leaf) = &tree.root else {
+            panic!("root should be a leaf");
+        };
+
+        let keys: Vec<&[u8]> = leaf
             .entries
             .iter()
             .map(|entry| entry.key.as_slice())
@@ -231,8 +234,11 @@ mod tests {
         tree.insert(b"name".to_vec(), record_id_1);
         tree.insert(b"name".to_vec(), record_id_2);
 
-        let keys: Vec<&[u8]> = tree
-            .root
+        let Node::Leaf(leaf) = &tree.root else {
+            panic!("root should be a leaf");
+        };
+
+        let keys: Vec<&[u8]> = leaf
             .entries
             .iter()
             .map(|entry| entry.key.as_slice())
@@ -243,22 +249,21 @@ mod tests {
     }
     #[test]
     fn leaf_split_divides_entries_in_key_order() {
-        let mut tree = BPlusTree::new();
+        let mut leaf = LeafNode::new();
 
         let record_id = RecordId {
             page_id: 0,
             slot_id: 0,
         };
 
-        tree.insert(b"name".to_vec(), record_id);
-        tree.insert(b"birth".to_vec(), record_id);
-        tree.insert(b"age".to_vec(), record_id);
-        tree.insert(b"address".to_vec(), record_id);
+        leaf.insert(b"name".to_vec(), record_id);
+        leaf.insert(b"birth".to_vec(), record_id);
+        leaf.insert(b"age".to_vec(), record_id);
+        leaf.insert(b"address".to_vec(), record_id);
 
-        let right = tree.root.split();
+        let (_separator_key, right) = leaf.split();
 
-        let left_keys: Vec<&[u8]> = tree
-            .root
+        let left_keys: Vec<&[u8]> = leaf
             .entries
             .iter()
             .map(|entry| entry.key.as_slice())
