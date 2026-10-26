@@ -77,12 +77,6 @@ impl Node {
 }
 
 impl InternalNode {
-    fn new() -> Self {
-        InternalNode {
-            keys: vec![],
-            children: vec![],
-        }
-    }
     fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
         let child_index = self
             .keys
