@@ -347,6 +347,11 @@ mod tests {
         tree.insert(b"name".to_vec(), record_id);
         tree.insert(b"zip".to_vec(), record_id);
 
+        assert_eq!(tree.get(b"age"), Some(record_id));
+        assert_eq!(tree.get(b"birth"), Some(record_id));
+        assert_eq!(tree.get(b"name"), Some(record_id));
+        assert_eq!(tree.get(b"zip"), Some(record_id));
+
         // 5件目以降
         let record_id_2 = RecordId {
             page_id: 0,
