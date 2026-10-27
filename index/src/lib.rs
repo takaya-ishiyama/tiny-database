@@ -1,28 +1,29 @@
 use storage::heap_file::RecordId;
 
 const MAX_LEAF_ENTRIES: usize = 3;
+const MAX_INTERNAL_KEYS: usize = 3;
 
 enum Node {
     Leaf(LeafNode),
     Internal(InternalNode),
 }
-
 pub struct BPlusTree {
     root: Node,
 }
-
 struct LeafNode {
     entries: Vec<Entry>,
 }
-
 pub struct InternalNode {
     keys: Vec<Vec<u8>>,
     children: Vec<Node>,
 }
-
 struct Entry {
     key: Vec<u8>,
     record_id: RecordId,
+}
+struct Split {
+    separator_key: Vec<u8>,
+    right: Node,
 }
 
 impl BPlusTree {
@@ -32,30 +33,18 @@ impl BPlusTree {
         }
     }
     pub fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
-        let should_split = match &mut self.root {
-            Node::Leaf(leaf) => {
-                leaf.insert(key, record_id);
-                leaf.entries.len() > MAX_LEAF_ENTRIES
-            }
-            Node::Internal(internal) => {
-                internal.insert(key, record_id);
-                return;
-            }
+        let split = self.root.insert(key, record_id);
+
+        let Some(split) = split else {
+            return;
         };
-        if should_split {
-            let old_root = std::mem::replace(&mut self.root, Node::Leaf(LeafNode::new()));
 
-            let Node::Leaf(mut left_leaf) = old_root else {
-                unreachable!();
-            };
+        let left = std::mem::replace(&mut self.root, Node::Leaf(LeafNode::new()));
 
-            let (separator_key, right_leaf) = left_leaf.split();
-
-            self.root = Node::Internal(InternalNode {
-                keys: vec![separator_key],
-                children: vec![Node::Leaf(left_leaf), Node::Leaf(right_leaf)],
-            })
-        }
+        self.root = Node::Internal(InternalNode {
+            keys: vec![split.separator_key],
+            children: vec![left, split.right],
+        });
     }
     pub fn get(&self, key: &[u8]) -> Option<RecordId> {
         self.root.get(key)
@@ -68,6 +57,25 @@ impl Default for BPlusTree {
 }
 
 impl Node {
+    fn insert(&mut self, key: Vec<u8>, record_id: RecordId) -> Option<Split> {
+        match self {
+            Node::Leaf(leaf) => {
+                leaf.insert(key, record_id);
+
+                if leaf.entries.len() <= MAX_LEAF_ENTRIES {
+                    return None;
+                }
+
+                let (separator_key, right_leaf) = leaf.split();
+
+                Some(Split {
+                    separator_key,
+                    right: Node::Leaf(right_leaf),
+                })
+            }
+            Node::Internal(internal) => internal.insert(key, record_id),
+        }
+    }
     fn get(&self, key: &[u8]) -> Option<RecordId> {
         match self {
             Node::Leaf(leaf) => leaf.get(key),
