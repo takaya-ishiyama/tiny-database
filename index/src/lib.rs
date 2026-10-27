@@ -85,29 +85,50 @@ impl Node {
 }
 
 impl InternalNode {
-    fn insert(&mut self, key: Vec<u8>, record_id: RecordId) {
+    fn insert(&mut self, key: Vec<u8>, record_id: RecordId) -> Option<Split> {
         let child_index = self
             .keys
             .partition_point(|separator| separator.as_slice() <= &key);
-        match &mut self.children[child_index] {
-            Node::Leaf(leaf) => {
-                leaf.insert(key, record_id);
-                if leaf.entries.len() <= MAX_LEAF_ENTRIES {
-                    return;
-                }
-                let (separator_key, right_leaf) = leaf.split();
-                self.keys.insert(child_index, separator_key);
-                self.children
-                    .insert(child_index + 1, Node::Leaf(right_leaf));
-            }
-            Node::Internal(internal) => internal.insert(key, record_id),
+
+        let child_split = self.children[child_index].insert(key, record_id);
+
+        let Some(split) = child_split else {
+            return None;
+        };
+        self.keys.insert(child_index, split.separator_key);
+
+        self.children.insert(child_index + 1, split.right);
+
+        if self.keys.len() <= MAX_INTERNAL_KEYS {
+            return None;
         }
+
+        let (separator_key, right_internal) = self.split();
+
+        Some(Split {
+            separator_key,
+            right: Node::Internal(right_internal),
+        })
     }
     fn get(&self, key: &[u8]) -> Option<RecordId> {
         let child_index = self
             .keys
             .partition_point(|separator| separator.as_slice() <= key);
         self.children[child_index].get(key)
+    }
+    fn split(&mut self) -> (Vec<u8>, InternalNode) {
+        let middle = self.keys.len() / 2;
+
+        let right_keys = self.keys.split_off(middle + 1);
+        let separator_key = self.keys.pop().unwrap();
+        let right_children = self.children.split_off(middle + 1);
+
+        let right_internal = InternalNode {
+            keys: right_keys,
+            children: right_children,
+        };
+
+        (separator_key, right_internal)
     }
 }
 
