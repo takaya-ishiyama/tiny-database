@@ -409,12 +409,8 @@ mod tests {
             panic!("root should be an internal node");
         };
 
-        let separator_keys: Vec<&[u8]> =
-            root.keys.iter().map(|key| key.as_slice()).collect();
-        assert_eq!(
-            separator_keys,
-            vec![b"c".as_slice(), b"e".as_slice()]
-        );
+        let separator_keys: Vec<&[u8]> = root.keys.iter().map(|key| key.as_slice()).collect();
+        assert_eq!(separator_keys, vec![b"c".as_slice(), b"e".as_slice()]);
         assert_eq!(root.children.len(), 3);
 
         let Node::Leaf(left) = &root.children[0] else {
@@ -453,5 +449,57 @@ mod tests {
         {
             assert_eq!(tree.get(key), Some(record_id));
         }
+    }
+    #[test]
+    fn inserting_enough_keys_increases_tree_height() {
+        let mut tree = BPlusTree::new();
+
+        let record_ids = [RecordId {
+            page_id: 0,
+            slot_id: 0,
+        }; 10];
+
+        for (key, record_id) in [b"a", b"b", b"c", b"d", b"e", b"f", b"g", b"h", b"i", b"j"]
+            .into_iter()
+            .zip(record_ids)
+        {
+            tree.insert(key.to_vec(), record_id);
+        }
+
+        let Node::Internal(root) = &tree.root else {
+            panic!("root should be an internal node");
+        };
+
+        let separator_keys: Vec<&[u8]> = root.keys.iter().map(|key| key.as_slice()).collect();
+
+        assert_eq!(separator_keys, vec![b"g".as_slice(),]);
+        assert_eq!(root.keys.len(), 1);
+        assert_eq!(root.children.len(), 2);
+
+        let Node::Internal(left_internal) = &root.children[0] else {
+            panic!("left child should be an internal node");
+        };
+
+        let Node::Internal(right_internal) = &root.children[1] else {
+            panic!("right child should be an internal node");
+        };
+
+        let left_keys: Vec<&[u8]> = left_internal
+            .keys
+            .iter()
+            .map(|key| key.as_slice())
+            .collect();
+
+        let right_keys: Vec<&[u8]> = right_internal
+            .keys
+            .iter()
+            .map(|key| key.as_slice())
+            .collect();
+
+        assert_eq!(left_keys, vec![b"c".as_slice(), b"e".as_slice()]);
+        assert_eq!(right_keys, vec![b"i".as_slice()]);
+
+        assert_eq!(left_internal.children.len(), 3);
+        assert_eq!(right_internal.children.len(), 2);
     }
 }
