@@ -49,7 +49,7 @@ impl BPlusTree {
     pub fn get(&self, key: &[u8]) -> Option<RecordId> {
         self.root.get(key)
     }
-    pub fn rang(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
+    pub fn range(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
         let mut results = Vec::new();
         self.root.range(start, end, &mut results);
         results
@@ -676,7 +676,7 @@ mod tests {
             );
         }
 
-        let result = tree.rang(b"b", b"e");
+        let result = tree.range(b"b", b"e");
 
         let expected = vec![
             (
