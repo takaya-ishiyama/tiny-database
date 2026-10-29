@@ -87,7 +87,7 @@ impl Node {
             Node::Internal(internal) => internal.get(key),
         }
     }
-    fn range(&mut self, start: &[u8], end: &[u8], results: &mut Vec<(Vec<u8>, RecordId)>) {
+    fn range(&self, start: &[u8], end: &[u8], results: &mut Vec<(Vec<u8>, RecordId)>) {
         match self {
             Node::Leaf(leaf) => leaf.range(start, end, results),
             Node::Internal(internal) => internal.range(start, end, results),
@@ -142,7 +142,9 @@ impl InternalNode {
         (separator_key, right_internal)
     }
     fn range(&self, start: &[u8], end: &[u8], results: &mut Vec<(Vec<u8>, RecordId)>) {
-        todo!()
+        for child in self.children.iter() {
+            child.range(start, end, results);
+        }
     }
 }
 
@@ -181,7 +183,7 @@ impl LeafNode {
 
         (separator_key, right_leaf)
     }
-    fn range(&mut self, start: &[u8], end: &[u8], results: &mut Vec<(Vec<u8>, RecordId)>) {
+    fn range(&self, start: &[u8], end: &[u8], results: &mut Vec<(Vec<u8>, RecordId)>) {
         for entry in self.entries.iter() {
             if start <= entry.key.as_slice() && entry.key.as_slice() < end {
                 results.push((entry.key.clone(), entry.record_id));
