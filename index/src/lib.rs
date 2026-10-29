@@ -50,7 +50,8 @@ impl BPlusTree {
         self.root.get(key)
     }
     pub fn rang(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
-        self.root.range(start, end)
+        let mut results = Vec::new();
+        self.root.range(start, end, &mut results)
     }
 }
 impl Default for BPlusTree {
@@ -85,11 +86,15 @@ impl Node {
             Node::Internal(internal) => internal.get(key),
         }
     }
-
-    fn range(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
+    fn range(
+        &self,
+        start: &[u8],
+        end: &[u8],
+        results: &mut Vec<(Vec<u8>, RecordId)>,
+    ) -> Vec<(Vec<u8>, RecordId)> {
         match self {
-            Node::Leaf(leaf) => leaf.range(start, end),
-            Node::Internal(internal) => internal.range(start, end),
+            Node::Leaf(leaf) => leaf.range(start, end, results),
+            Node::Internal(internal) => internal.range(start, end, results),
         }
     }
 }
@@ -140,7 +145,12 @@ impl InternalNode {
 
         (separator_key, right_internal)
     }
-    fn range(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
+    fn range(
+        &self,
+        start: &[u8],
+        end: &[u8],
+        results: &mut Vec<(Vec<u8>, RecordId)>,
+    ) -> Vec<(Vec<u8>, RecordId)> {
         todo!()
     }
 }
@@ -180,7 +190,12 @@ impl LeafNode {
 
         (separator_key, right_leaf)
     }
-    fn range(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
+    fn range(
+        &self,
+        start: &[u8],
+        end: &[u8],
+        results: &mut Vec<(Vec<u8>, RecordId)>,
+    ) -> Vec<(Vec<u8>, RecordId)> {
         todo!()
     }
 }
