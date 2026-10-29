@@ -531,4 +531,79 @@ mod tests {
         assert_eq!(left_internal.children.len(), 3);
         assert_eq!(right_internal.children.len(), 2);
     }
+    #[test]
+    fn all_values_can_be_found_after_internal_node_split() {
+        let mut tree = BPlusTree::new();
+
+        let record_id_1 = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+        let record_id_2 = RecordId {
+            page_id: 0,
+            slot_id: 1,
+        };
+        let record_id_3 = RecordId {
+            page_id: 0,
+            slot_id: 2,
+        };
+        let record_id_4 = RecordId {
+            page_id: 0,
+            slot_id: 3,
+        };
+        let record_id_5 = RecordId {
+            page_id: 0,
+            slot_id: 4,
+        };
+        let record_id_6 = RecordId {
+            page_id: 0,
+            slot_id: 5,
+        };
+        let record_id_7 = RecordId {
+            page_id: 0,
+            slot_id: 6,
+        };
+        let record_id_8 = RecordId {
+            page_id: 0,
+            slot_id: 7,
+        };
+        let record_id_9 = RecordId {
+            page_id: 0,
+            slot_id: 8,
+        };
+        let record_id_10 = RecordId {
+            page_id: 0,
+            slot_id: 9,
+        };
+        let record_ids = [
+            record_id_1,
+            record_id_2,
+            record_id_3,
+            record_id_4,
+            record_id_5,
+            record_id_6,
+            record_id_7,
+            record_id_8,
+            record_id_9,
+            record_id_10,
+        ];
+
+        for (key, record_id) in [b"a", b"b", b"c", b"d", b"e", b"f", b"g", b"h", b"i", b"j"]
+            .into_iter()
+            .zip(record_ids)
+        {
+            tree.insert(key.to_vec(), record_id);
+        }
+
+        assert_eq!(tree.get(b"a"), Some(record_id_1));
+        assert_eq!(tree.get(b"b"), Some(record_id_2));
+        assert_eq!(tree.get(b"c"), Some(record_id_3));
+        assert_eq!(tree.get(b"d"), Some(record_id_4));
+        assert_eq!(tree.get(b"e"), Some(record_id_5));
+        assert_eq!(tree.get(b"f"), Some(record_id_6));
+        assert_eq!(tree.get(b"g"), Some(record_id_7));
+        assert_eq!(tree.get(b"h"), Some(record_id_8));
+        assert_eq!(tree.get(b"i"), Some(record_id_9));
+        assert_eq!(tree.get(b"j"), Some(record_id_10));
+    }
 }
