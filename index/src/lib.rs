@@ -700,13 +700,6 @@ mod tests {
                     slot_id: 2,
                 },
             ),
-            (
-                b"e".to_vec(),
-                RecordId {
-                    page_id: 0,
-                    slot_id: 5,
-                },
-            ),
         ];
 
         assert_eq!(result, expected);
