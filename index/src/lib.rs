@@ -49,6 +49,9 @@ impl BPlusTree {
     pub fn get(&self, key: &[u8]) -> Option<RecordId> {
         self.root.get(key)
     }
+    pub fn rang(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
+        self.root.range(start, end)
+    }
 }
 impl Default for BPlusTree {
     fn default() -> Self {
@@ -80,6 +83,13 @@ impl Node {
         match self {
             Node::Leaf(leaf) => leaf.get(key),
             Node::Internal(internal) => internal.get(key),
+        }
+    }
+
+    fn range(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
+        match self {
+            Node::Leaf(leaf) => leaf.range(start, end),
+            Node::Internal(internal) => internal.range(start, end),
         }
     }
 }
@@ -130,6 +140,9 @@ impl InternalNode {
 
         (separator_key, right_internal)
     }
+    fn range(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
+        todo!()
+    }
 }
 
 impl LeafNode {
@@ -166,6 +179,9 @@ impl LeafNode {
         };
 
         (separator_key, right_leaf)
+    }
+    fn range(&self, start: &[u8], end: &[u8]) -> Vec<(Vec<u8>, RecordId)> {
+        todo!()
     }
 }
 
@@ -637,5 +653,55 @@ mod tests {
                 })
             );
         }
+    }
+    #[test]
+    fn range_returns_values_in_key_order() {
+        let mut tree = BPlusTree::new();
+        let keys = [b"b", b"a", b"d", b"c", b"f", b"e"];
+
+        for (slot_id, key) in keys.into_iter().enumerate() {
+            tree.insert(
+                key.to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: slot_id as u16,
+                },
+            );
+        }
+
+        let result = tree.rang(b"b", b"e");
+
+        let expected = vec![
+            (
+                b"b".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 0,
+                },
+            ),
+            (
+                b"c".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 3,
+                },
+            ),
+            (
+                b"d".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 2,
+                },
+            ),
+            (
+                b"e".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 5,
+                },
+            ),
+        ];
+
+        assert_eq!(result, expected);
     }
 }
