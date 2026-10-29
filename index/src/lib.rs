@@ -606,4 +606,36 @@ mod tests {
         assert_eq!(tree.get(b"i"), Some(record_id_9));
         assert_eq!(tree.get(b"j"), Some(record_id_10));
     }
+
+    #[test]
+    fn all_values_can_be_found_after_out_of_order_internal_node_split() {
+        let mut tree = BPlusTree::new();
+        let keys = [b"b", b"a", b"d", b"c", b"f", b"e", b"h", b"g", b"j", b"i"];
+
+        for (slot_id, key) in keys.into_iter().enumerate() {
+            tree.insert(
+                key.to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: slot_id as u16,
+                },
+            );
+        }
+
+        let Node::Internal(root) = &tree.root else {
+            panic!("root should be an internal node");
+        };
+        assert!(matches!(root.children[0], Node::Internal(_)));
+        assert!(matches!(root.children[1], Node::Internal(_)));
+
+        for (slot_id, key) in keys.into_iter().enumerate() {
+            assert_eq!(
+                tree.get(key),
+                Some(RecordId {
+                    page_id: 0,
+                    slot_id: slot_id as u16,
+                })
+            );
+        }
+    }
 }
