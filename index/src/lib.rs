@@ -704,4 +704,68 @@ mod tests {
 
         assert_eq!(result, expected);
     }
+    #[test]
+    fn range_returns_values_across_multiple_tree_levels() {
+        let mut tree = BPlusTree::new();
+        let keys = [b"j", b"b", b"a", b"d", b"i", b"c", b"f", b"e", b"h", b"g"];
+
+        for (slot_id, key) in keys.into_iter().enumerate() {
+            tree.insert(
+                key.to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: slot_id as u16,
+                },
+            );
+        }
+
+        let result = tree.range(b"c", b"i");
+
+        let expected = vec![
+            (
+                b"c".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 5,
+                },
+            ),
+            (
+                b"d".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 3,
+                },
+            ),
+            (
+                b"e".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 7,
+                },
+            ),
+            (
+                b"f".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 6,
+                },
+            ),
+            (
+                b"g".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 9,
+                },
+            ),
+            (
+                b"h".to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: 8,
+                },
+            ),
+        ];
+
+        assert_eq!(result, expected);
+    }
 }
