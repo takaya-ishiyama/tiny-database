@@ -707,7 +707,8 @@ mod tests {
     #[test]
     fn range_returns_values_across_multiple_tree_levels() {
         let mut tree = BPlusTree::new();
-        let keys = [b"j", b"b", b"a", b"d", b"i", b"c", b"f", b"e", b"h", b"g"];
+
+        let keys = [b"b", b"a", b"d", b"c", b"f", b"e", b"h", b"g", b"j", b"i"];
 
         for (slot_id, key) in keys.into_iter().enumerate() {
             tree.insert(
@@ -726,42 +727,42 @@ mod tests {
                 b"c".to_vec(),
                 RecordId {
                     page_id: 0,
-                    slot_id: 5,
+                    slot_id: 3,
                 },
             ),
             (
                 b"d".to_vec(),
                 RecordId {
                     page_id: 0,
-                    slot_id: 3,
+                    slot_id: 2,
                 },
             ),
             (
                 b"e".to_vec(),
                 RecordId {
                     page_id: 0,
-                    slot_id: 7,
+                    slot_id: 5,
                 },
             ),
             (
                 b"f".to_vec(),
                 RecordId {
                     page_id: 0,
-                    slot_id: 6,
+                    slot_id: 4,
                 },
             ),
             (
                 b"g".to_vec(),
                 RecordId {
                     page_id: 0,
-                    slot_id: 9,
+                    slot_id: 7,
                 },
             ),
             (
                 b"h".to_vec(),
                 RecordId {
                     page_id: 0,
-                    slot_id: 8,
+                    slot_id: 6,
                 },
             ),
         ];
