@@ -54,6 +54,9 @@ impl BPlusTree {
         self.root.range(start, end, &mut results);
         results
     }
+    pub fn delete(&self, key: &[u8]) -> bool {
+        todo!()
+    }
 }
 impl Default for BPlusTree {
     fn default() -> Self {
@@ -775,5 +778,20 @@ mod tests {
 
         assert!(matches!(root.children[0], Node::Internal(_)));
         assert!(matches!(root.children[1], Node::Internal(_)));
+    }
+    #[test]
+    fn deleted_key_can_no_longer_be_found() {
+        let mut tree = BPlusTree::new();
+        let record_id = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+        tree.insert(b"name".to_vec(), record_id);
+
+        assert_eq!(tree.get(b"name"), Some(record_id));
+
+        assert!(tree.delete(b"name"));
+
+        assert_eq!(tree.get(b"name"), None);
     }
 }
