@@ -768,5 +768,12 @@ mod tests {
         ];
 
         assert_eq!(result, expected);
+
+        let Node::Internal(root) = &tree.root else {
+            panic!("root should be an internal node");
+        };
+
+        assert!(matches!(root.children[0], Node::Internal(_)));
+        assert!(matches!(root.children[1], Node::Internal(_)));
     }
 }
