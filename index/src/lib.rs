@@ -859,4 +859,54 @@ mod tests {
 
         assert_eq!(tree.get(b"name"), Some(record_id_2));
     }
+    #[test]
+    fn deleting_an_already_deleted_key_returns_false() {
+        let mut tree = BPlusTree::new();
+        let record_id = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+        tree.insert(b"name".to_vec(), record_id);
+
+        assert_eq!(tree.get(b"name"), Some(record_id));
+
+        assert!(tree.delete(b"name"));
+
+        assert_eq!(tree.get(b"name"), None);
+
+        assert!(!tree.delete(b"name"));
+    }
+    #[test]
+    fn range_excludes_deleted_keys() {
+        let mut tree = BPlusTree::new();
+        let record_id_1 = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+        let record_id_2 = RecordId {
+            page_id: 0,
+            slot_id: 1,
+        };
+        tree.insert(b"name".to_vec(), record_id_1);
+        tree.insert(b"age".to_vec(), record_id_2);
+
+        assert_eq!(tree.get(b"name"), Some(record_id_1));
+        assert_eq!(tree.get(b"age"), Some(record_id_2));
+
+        assert!(tree.delete(b"name"));
+
+        assert_eq!(tree.get(b"name"), None);
+
+        let result = tree.range(b"a", b"z");
+
+        let expected = vec![(
+            b"age".to_vec(),
+            RecordId {
+                page_id: 0,
+                slot_id: 1,
+            },
+        )];
+
+        assert_eq!(result, expected);
+    }
 }
