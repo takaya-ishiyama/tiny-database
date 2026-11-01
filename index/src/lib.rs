@@ -188,7 +188,14 @@ impl LeafNode {
             .entries
             .binary_search_by(|entry| entry.key.as_slice().cmp(key))
         {
-            Ok(index) => Some(self.entries[index].record_id),
+            Ok(index) => {
+                let entry = &self.entries[index];
+                if entry.tombstone {
+                    None
+                } else {
+                    Some(entry.record_id)
+                }
+            }
             Err(_) => None,
         }
     }
@@ -206,6 +213,9 @@ impl LeafNode {
     fn range(&self, start: &[u8], end: &[u8], results: &mut Vec<(Vec<u8>, RecordId)>) {
         for entry in self.entries.iter() {
             if start <= entry.key.as_slice() && entry.key.as_slice() < end {
+                if entry.tombstone {
+                    continue;
+                }
                 results.push((entry.key.clone(), entry.record_id));
             }
         }
