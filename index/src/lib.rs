@@ -20,6 +20,7 @@ pub struct InternalNode {
 struct Entry {
     key: Vec<u8>,
     record_id: RecordId,
+    tombstone: bool,
 }
 struct Split {
     separator_key: Vec<u8>,
@@ -54,8 +55,8 @@ impl BPlusTree {
         self.root.range(start, end, &mut results);
         results
     }
-    pub fn delete(&self, key: &[u8]) -> bool {
-        todo!()
+    pub fn delete(&mut self, key: &[u8]) -> bool {
+        self.root.delete(key)
     }
 }
 impl Default for BPlusTree {
@@ -95,6 +96,12 @@ impl Node {
             Node::Leaf(leaf) => leaf.range(start, end, results),
             Node::Internal(internal) => internal.range(start, end, results),
         };
+    }
+    fn delete(&mut self, key: &[u8]) -> bool {
+        match self {
+            Node::Leaf(leaf) => leaf.delete(key),
+            Node::Internal(internal) => internal.delete(key),
+        }
     }
 }
 
@@ -149,6 +156,12 @@ impl InternalNode {
             child.range(start, end, results);
         }
     }
+    fn delete(&mut self, key: &[u8]) -> bool {
+        let child_index = self
+            .keys
+            .partition_point(|separator| separator.as_slice() <= key);
+        self.children[child_index].delete(key)
+    }
 }
 
 impl LeafNode {
@@ -161,7 +174,11 @@ impl LeafNode {
                 self.entries[index].record_id = record_id;
             }
             Err(index) => {
-                let entry = Entry { key, record_id };
+                let entry = Entry {
+                    key,
+                    record_id,
+                    tombstone: false,
+                };
                 self.entries.insert(index, entry);
             }
         };
@@ -191,6 +208,18 @@ impl LeafNode {
             if start <= entry.key.as_slice() && entry.key.as_slice() < end {
                 results.push((entry.key.clone(), entry.record_id));
             }
+        }
+    }
+    fn delete(&mut self, key: &[u8]) -> bool {
+        if let Some(index) = self
+            .entries
+            .iter()
+            .position(|entry| entry.key.as_slice() == key)
+        {
+            self.entries[index].tombstone = true;
+            true
+        } else {
+            false
         }
     }
 }
