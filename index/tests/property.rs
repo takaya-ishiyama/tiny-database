@@ -63,3 +63,40 @@ fn random_ranges_match_btree_map() {
         assert_eq!(tree.range(&start, &end), expected);
     }
 }
+
+#[test]
+fn random_operations_match_btree_map() {
+    let mut tree = BPlusTree::new();
+    let mut model = BTreeMap::new();
+    let mut random_state = 0xD3E7E_u64;
+
+    for operation_index in 0..10_000 {
+        let operation = next_random(&mut random_state) % 3;
+        let key_number = next_random(&mut random_state) % 256;
+        let key = key_number.to_be_bytes().to_vec();
+
+        match operation {
+            0 => {
+                let record_id = RecordId {
+                    page_id: operation_index,
+                    slot_id: 0,
+                };
+
+                tree.insert(key.clone(), record_id);
+                model.insert(key, record_id);
+            }
+            1 => {
+                assert_eq!(tree.delete(&key), model.remove(&key).is_some());
+            }
+            2 => {
+                assert_eq!(tree.get(&key), model.get(&key).copied());
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    for key_number in 0_u64..256 {
+        let key = key_number.to_be_bytes();
+        assert_eq!(tree.get(&key), model.get(key.as_slice()).copied());
+    }
+}
