@@ -58,6 +58,9 @@ impl BPlusTree {
     pub fn delete(&mut self, key: &[u8]) -> bool {
         self.root.delete(key)
     }
+    pub fn check_invariants(&self) -> bool {
+        todo!()
+    }
 }
 impl Default for BPlusTree {
     fn default() -> Self {
@@ -908,5 +911,26 @@ mod tests {
         )];
 
         assert_eq!(result, expected);
+    }
+    #[test]
+    fn tree_invariants_hold_after_many_insertions() {
+        let mut tree = BPlusTree::new();
+        let mut random_state = 0x5EED_u64;
+
+        for insertion_index in 0..1_000 {
+            random_state = random_state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+
+            tree.insert(
+                random_state.to_be_bytes().to_vec(),
+                RecordId {
+                    page_id: insertion_index,
+                    slot_id: 0,
+                },
+            );
+        }
+
+        assert!(tree.check_invariants());
     }
 }
