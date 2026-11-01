@@ -172,6 +172,7 @@ impl LeafNode {
         match self.entries.binary_search_by(|entry| entry.key.cmp(&key)) {
             Ok(index) => {
                 self.entries[index].record_id = record_id;
+                self.entries[index].tombstone = false;
             }
             Err(index) => {
                 let entry = Entry {
@@ -832,5 +833,28 @@ mod tests {
         assert!(tree.delete(b"name"));
 
         assert_eq!(tree.get(b"name"), None);
+    }
+    #[test]
+    fn reinserting_deleted_key_makes_it_findable_again() {
+        let mut tree = BPlusTree::new();
+        let record_id_1 = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+        let record_id_2 = RecordId {
+            page_id: 0,
+            slot_id: 1,
+        };
+        tree.insert(b"name".to_vec(), record_id_1);
+
+        assert_eq!(tree.get(b"name"), Some(record_id_1));
+
+        assert!(tree.delete(b"name"));
+
+        assert_eq!(tree.get(b"name"), None);
+
+        tree.insert(b"name".to_vec(), record_id_2);
+
+        assert_eq!(tree.get(b"name"), Some(record_id_2));
     }
 }
