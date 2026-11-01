@@ -222,16 +222,18 @@ impl LeafNode {
         }
     }
     fn delete(&mut self, key: &[u8]) -> bool {
-        if let Some(index) = self
+        let Ok(index) = self
             .entries
-            .iter()
-            .position(|entry| entry.key.as_slice() == key)
-        {
-            self.entries[index].tombstone = true;
-            true
-        } else {
-            false
+            .binary_search_by(|entry| entry.key.as_slice().cmp(key))
+        else {
+            return false;
+        };
+        let entry = &mut self.entries[index];
+        if entry.tombstone {
+            return false;
         }
+        entry.tombstone = true;
+        true
     }
 }
 
