@@ -59,7 +59,8 @@ impl BPlusTree {
         self.root.delete(key)
     }
     pub fn check_invariants(&self) -> bool {
-        todo!()
+        let mut expected_leaf_depth = None;
+        self.root.check_invariants(0, &mut expected_leaf_depth)
     }
 }
 impl Default for BPlusTree {
@@ -104,6 +105,12 @@ impl Node {
         match self {
             Node::Leaf(leaf) => leaf.delete(key),
             Node::Internal(internal) => internal.delete(key),
+        }
+    }
+    fn check_invariants(&self, depth: usize, expected_leaf_depth: &mut Option<usize>) -> bool {
+        match self {
+            Node::Leaf(leaf) => leaf.check_invariants(depth, expected_leaf_depth),
+            Node::Internal(internal) => internal.check_invariants(depth, expected_leaf_depth),
         }
     }
 }
@@ -164,6 +171,17 @@ impl InternalNode {
             .keys
             .partition_point(|separator| separator.as_slice() <= key);
         self.children[child_index].delete(key)
+    }
+    fn check_invariants(&self, depth: usize, expected_leaf_depth: &mut Option<usize>) -> bool {
+        if self.keys.len() > MAX_INTERNAL_KEYS {
+            return false;
+        }
+        if self.children.len() != self.keys.len() + 1 {
+            return false;
+        }
+        self.children
+            .iter()
+            .all(|child| child.check_invariants(depth + 1, expected_leaf_depth))
     }
 }
 
@@ -237,6 +255,18 @@ impl LeafNode {
         }
         entry.tombstone = true;
         true
+    }
+    fn check_invariants(&self, depth: usize, expected_leaf_depth: &mut Option<usize>) -> bool {
+        if self.entries.len() > MAX_LEAF_ENTRIES {
+            return false;
+        }
+        match expected_leaf_depth {
+            Some(expected) => *expected == depth,
+            None => {
+                *expected_leaf_depth = Some(depth);
+                true
+            }
+        }
     }
 }
 
