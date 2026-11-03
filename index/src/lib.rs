@@ -181,7 +181,13 @@ impl InternalNode {
             .partition_point(|separator| separator.as_slice() <= key);
         self.children[child_index].delete(key)
     }
-    fn check_invariants(&self, depth: usize, expected_leaf_depth: &mut Option<usize>) -> bool {
+    fn check_invariants(
+        &self,
+        depth: usize,
+        expected_leaf_depth: &mut Option<usize>,
+        lower_bound: Option<&[u8]>,
+        upper_bound: Option<&[u8]>,
+    ) -> bool {
         let keys_are_sorted = self.keys.windows(2).all(|pair| pair[0] < pair[1]);
         if !keys_are_sorted {
             return false;
@@ -192,9 +198,23 @@ impl InternalNode {
         if self.children.len() != self.keys.len() + 1 {
             return false;
         }
-        self.children
-            .iter()
-            .all(|child| child.check_invariants(depth + 1, expected_leaf_depth))
+
+        for (i, child) in self.children.iter().enumerate() {
+            let child_lower = if i == 0 {
+                lower_bound
+            } else {
+                Some(self.keys[i - 1].as_slice())
+            };
+            let child_upper = if i == self.keys.len() {
+                upper_bound
+            } else {
+                Some(self.keys[i].as_slice())
+            };
+            if !child.check_invariants(depth + 1, expected_leaf_depth, child_lower, child_upper) {
+                return false;
+            }
+        }
+        true
     }
 }
 
