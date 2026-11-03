@@ -311,16 +311,24 @@ impl LeafNode {
         }
 
         if let Some(lower) = lower_bound {
-            return self
+            let has_key_below_lower = self
                 .entries
                 .iter()
                 .any(|entry| entry.key.as_slice() < lower);
+
+            if has_key_below_lower {
+                return false;
+            }
         }
         if let Some(upper) = upper_bound {
-            return self
+            let has_key_at_or_above_upper = self
                 .entries
                 .iter()
                 .any(|entry| entry.key.as_slice() >= upper);
+
+            if has_key_at_or_above_upper {
+                return false;
+            }
         }
 
         match expected_leaf_depth {
