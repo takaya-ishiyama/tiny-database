@@ -119,7 +119,9 @@ impl Node {
             Node::Leaf(leaf) => {
                 leaf.check_invariants(depth, expected_leaf_depth, lower_bound, upper_bound)
             }
-            Node::Internal(internal) => internal.check_invariants(depth, expected_leaf_depth),
+            Node::Internal(internal) => {
+                internal.check_invariants(depth, expected_leaf_depth, lower_bound, upper_bound)
+            }
         }
     }
 }
@@ -309,12 +311,14 @@ impl LeafNode {
         }
 
         if let Some(lower) = lower_bound {
-            self.entries
+            return self
+                .entries
                 .iter()
                 .any(|entry| entry.key.as_slice() < lower);
         }
         if let Some(upper) = upper_bound {
-            self.entries
+            return self
+                .entries
                 .iter()
                 .any(|entry| entry.key.as_slice() >= upper);
         }
