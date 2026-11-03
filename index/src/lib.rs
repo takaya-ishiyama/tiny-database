@@ -60,7 +60,8 @@ impl BPlusTree {
     }
     pub fn check_invariants(&self) -> bool {
         let mut expected_leaf_depth = None;
-        self.root.check_invariants(0, &mut expected_leaf_depth)
+        self.root
+            .check_invariants(0, &mut expected_leaf_depth, None, None)
     }
 }
 impl Default for BPlusTree {
@@ -107,9 +108,17 @@ impl Node {
             Node::Internal(internal) => internal.delete(key),
         }
     }
-    fn check_invariants(&self, depth: usize, expected_leaf_depth: &mut Option<usize>) -> bool {
+    fn check_invariants(
+        &self,
+        depth: usize,
+        expected_leaf_depth: &mut Option<usize>,
+        lower_bound: Option<&[u8]>,
+        upper_bound: Option<&[u8]>,
+    ) -> bool {
         match self {
-            Node::Leaf(leaf) => leaf.check_invariants(depth, expected_leaf_depth),
+            Node::Leaf(leaf) => {
+                leaf.check_invariants(depth, expected_leaf_depth, lower_bound, upper_bound)
+            }
             Node::Internal(internal) => internal.check_invariants(depth, expected_leaf_depth),
         }
     }
@@ -260,7 +269,16 @@ impl LeafNode {
         entry.tombstone = true;
         true
     }
-    fn check_invariants(&self, depth: usize, expected_leaf_depth: &mut Option<usize>) -> bool {
+    fn check_invariants(
+        &self,
+        depth: usize,
+        expected_leaf_depth: &mut Option<usize>,
+        lower_bound: Option<&[u8]>,
+        upper_bound: Option<&[u8]>,
+    ) -> bool {
+        if self.entries.len() > MAX_LEAF_ENTRIES {
+            return false;
+        }
         let keys_are_sorted = self
             .entries
             .windows(2)
@@ -269,9 +287,18 @@ impl LeafNode {
         if !keys_are_sorted {
             return false;
         }
-        if self.entries.len() > MAX_LEAF_ENTRIES {
-            return false;
+
+        if let Some(lower) = lower_bound {
+            self.entries
+                .iter()
+                .any(|entry| entry.key.as_slice() < lower);
         }
+        if let Some(upper) = upper_bound {
+            self.entries
+                .iter()
+                .any(|entry| entry.key.as_slice() >= upper);
+        }
+
         match expected_leaf_depth {
             Some(expected) => *expected == depth,
             None => {
@@ -1012,6 +1039,30 @@ mod tests {
             panic!("root should be an internal node");
         };
         root.keys.swap(0, 1);
+
+        assert!(!tree.check_invariants());
+    }
+    #[test]
+    fn check_invariants_rejects_key_outside_child_range() {
+        let mut tree = BPlusTree::new();
+        let keys = [b"b", b"a", b"d", b"c", b"f", b"e"];
+
+        for (slot_id, key) in keys.into_iter().enumerate() {
+            tree.insert(
+                key.to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: slot_id as u16,
+                },
+            );
+        }
+
+        let Node::Internal(root) = &mut tree.root else {
+            panic!("root should be an internal node");
+        };
+
+        // root単体ではキーはソートされているが、子ノードの範囲外のキーを持つように変更する
+        root.keys[1] = b"z".to_vec();
 
         assert!(!tree.check_invariants());
     }
