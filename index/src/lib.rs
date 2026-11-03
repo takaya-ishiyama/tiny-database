@@ -173,6 +173,10 @@ impl InternalNode {
         self.children[child_index].delete(key)
     }
     fn check_invariants(&self, depth: usize, expected_leaf_depth: &mut Option<usize>) -> bool {
+        let keys_are_sorted = self.keys.windows(2).all(|pair| pair[0] < pair[1]);
+        if !keys_are_sorted {
+            return false;
+        }
         if self.keys.len() > MAX_INTERNAL_KEYS {
             return false;
         }
@@ -986,6 +990,28 @@ mod tests {
             panic!("root should be a leaf");
         };
         leaf.entries.swap(0, 1);
+
+        assert!(!tree.check_invariants());
+    }
+    #[test]
+    fn check_invariants_rejects_unsorted_internal_keys() {
+        let mut tree = BPlusTree::new();
+        let keys = [b"b", b"a", b"d", b"c", b"f", b"e"];
+
+        for (slot_id, key) in keys.into_iter().enumerate() {
+            tree.insert(
+                key.to_vec(),
+                RecordId {
+                    page_id: 0,
+                    slot_id: slot_id as u16,
+                },
+            );
+        }
+
+        let Node::Internal(root) = &mut tree.root else {
+            panic!("root should be an internal node");
+        };
+        root.keys.swap(0, 1);
 
         assert!(!tree.check_invariants());
     }
