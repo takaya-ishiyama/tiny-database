@@ -257,6 +257,14 @@ impl LeafNode {
         true
     }
     fn check_invariants(&self, depth: usize, expected_leaf_depth: &mut Option<usize>) -> bool {
+        let keys_are_sorted = self
+            .entries
+            .windows(2)
+            .all(|pair| pair[0].key < pair[1].key);
+
+        if !keys_are_sorted {
+            return false;
+        }
         if self.entries.len() > MAX_LEAF_ENTRIES {
             return false;
         }
@@ -962,5 +970,23 @@ mod tests {
         }
 
         assert!(tree.check_invariants());
+    }
+    #[test]
+    fn check_invariants_rejects_unsorted_leaf_keys() {
+        let mut tree = BPlusTree::new();
+        let record_id = RecordId {
+            page_id: 0,
+            slot_id: 0,
+        };
+        tree.insert(b"name".to_vec(), record_id);
+        tree.insert(b"age".to_vec(), record_id);
+        tree.insert(b"fizz".to_vec(), record_id);
+
+        let Node::Leaf(leaf) = &mut tree.root else {
+            panic!("root should be a leaf");
+        };
+        leaf.entries.swap(0, 1);
+
+        assert!(!tree.check_invariants());
     }
 }
