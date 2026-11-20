@@ -1,3 +1,5 @@
+mod page;
+
 use storage::heap_file::RecordId;
 
 const MAX_LEAF_ENTRIES: usize = 3;
