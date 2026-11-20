@@ -118,4 +118,32 @@ mod tests {
                     && actual == unsupported_version
         ));
     }
+    #[test]
+    fn index_header_survives_pager_round_trip() {
+        use storage::pager::Pager;
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("index.db");
+
+        let mut pager = Pager::open(&path).unwrap();
+
+        let header_page_id = pager.allocate_page().unwrap();
+        assert_eq!(header_page_id, 0);
+
+        let root_page_id = pager.allocate_page().unwrap();
+        assert_eq!(root_page_id, 1);
+
+        let header = IndexHeaderPage::new(root_page_id);
+        pager
+            .write_page(header_page_id, &header.to_bytes())
+            .unwrap();
+
+        drop(pager);
+
+        let mut reopened_pager = Pager::open(&path).unwrap();
+        let bytes = reopened_pager.read_page(header_page_id).unwrap();
+        let decoded = IndexHeaderPage::from_bytes(&bytes).unwrap();
+
+        assert_eq!(decoded.root_page_id, root_page_id);
+    }
 }

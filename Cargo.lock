@@ -59,6 +59,7 @@ name = "index"
 version = "0.1.0"
 dependencies = [
  "storage",
+ "tempfile",
 ]
 
 [[package]]
