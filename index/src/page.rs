@@ -83,4 +83,39 @@ mod tests {
 
         assert_eq!(decoded, original);
     }
+    #[test]
+    fn index_header_rejects_invalid_magic() {
+        let header = IndexHeaderPage::new(42);
+        let mut bytes = header.to_bytes();
+
+        bytes[MAGIC_OFFSET] = b'X';
+
+        let result = IndexHeaderPage::from_bytes(&bytes);
+
+        assert!(matches!(
+            result,
+            Err(Error::InvalidMagic { expected, actual })
+                if expected == *INDEX_MAGIC
+                    && actual == *b"XPTREE01"
+        ));
+    }
+    #[test]
+    fn index_header_rejects_unsupported_format_version() {
+        let header = IndexHeaderPage::new(42);
+        let mut bytes = header.to_bytes();
+
+        let unsupported_version = 2u32;
+
+        bytes[VERSION_OFFSET..VERSION_OFFSET + size_of::<u32>()]
+            .copy_from_slice(&unsupported_version.to_le_bytes());
+
+        let result = IndexHeaderPage::from_bytes(&bytes);
+
+        assert!(matches!(
+            result,
+            Err(Error::UnsupportedFormatVersion { expected, actual })
+                if expected == INDEX_FORMAT_VERSION
+                    && actual == unsupported_version
+        ));
+    }
 }
