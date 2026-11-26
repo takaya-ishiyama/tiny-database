@@ -11,6 +11,13 @@ const MAGIC_OFFSET: usize = 0;
 const VERSION_OFFSET: usize = MAGIC_OFFSET + INDEX_MAGIC.len();
 const ROOT_PAGE_ID_OFFSET: usize = VERSION_OFFSET + std::mem::size_of::<u32>();
 
+const NODE_TYPE_OFFSET: usize = 0;
+const ENTRY_COUNT_OFFSET: usize = 1;
+const NEXT_LEAF_PAGE_ID_OFFSET: usize = ENTRY_COUNT_OFFSET + size_of::<u16>();
+
+const LEAF_NODE_TYPE: u8 = 1;
+const NO_NEXT_LEAF_PAGE: PageId = PageId::MAX;
+
 #[derive(Debug, PartialEq, Eq)]
 struct IndexHeaderPage {
     root_page_id: PageId,
@@ -56,6 +63,36 @@ impl IndexHeaderPage {
                 .unwrap(),
         );
         Ok(Self { root_page_id })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct LeafNodePage {
+    next_leaf_page_id: Option<PageId>,
+}
+
+impl LeafNodePage {
+    fn empty() -> Self {
+        Self {
+            next_leaf_page_id: None,
+        }
+    }
+
+    fn to_bytes(&self) -> [u8; PAGE_SIZE] {
+        let mut bytes = [0u8; PAGE_SIZE];
+
+        bytes[NODE_TYPE_OFFSET] = LEAF_NODE_TYPE;
+
+        let entry_count = 0u16;
+        bytes[ENTRY_COUNT_OFFSET..ENTRY_COUNT_OFFSET + size_of::<u16>()]
+            .copy_from_slice(&entry_count.to_le_bytes());
+
+        let next_leaf_page_id = self.next_leaf_page_id.unwrap_or(NO_NEXT_LEAF_PAGE);
+
+        bytes[NEXT_LEAF_PAGE_ID_OFFSET..NEXT_LEAF_PAGE_ID_OFFSET + size_of::<PageId>()]
+            .copy_from_slice(&next_leaf_page_id.to_le_bytes());
+
+        bytes
     }
 }
 
@@ -145,5 +182,28 @@ mod tests {
         let decoded = IndexHeaderPage::from_bytes(&bytes).unwrap();
 
         assert_eq!(decoded.root_page_id, root_page_id);
+    }
+
+    #[test]
+    fn empty_leaf_page_encodes_header() {
+        let leaf = LeafNodePage::empty();
+
+        let bytes = leaf.to_bytes();
+
+        assert_eq!(bytes[NODE_TYPE_OFFSET], LEAF_NODE_TYPE);
+
+        let entry_count = u16::from_le_bytes(
+            bytes[ENTRY_COUNT_OFFSET..ENTRY_COUNT_OFFSET + size_of::<u16>()]
+                .try_into()
+                .unwrap(),
+        );
+        assert_eq!(entry_count, 0);
+
+        let next_leaf_page_id = PageId::from_le_bytes(
+            bytes[NEXT_LEAF_PAGE_ID_OFFSET..NEXT_LEAF_PAGE_ID_OFFSET + size_of::<PageId>()]
+                .try_into()
+                .unwrap(),
+        );
+        assert_eq!(next_leaf_page_id, NO_NEXT_LEAF_PAGE);
     }
 }
