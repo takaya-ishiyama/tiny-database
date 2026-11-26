@@ -206,4 +206,61 @@ mod tests {
         );
         assert_eq!(next_leaf_page_id, NO_NEXT_LEAF_PAGE);
     }
+
+    #[test]
+    fn empty_root_leaf_survives_pager_round_trip() {
+        use storage::pager::Pager;
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("index.db");
+
+        let mut pager = Pager::open(&path).unwrap();
+
+        let header_page_id = pager.allocate_page().unwrap();
+        assert_eq!(header_page_id, 0);
+
+        let root_page_id = pager.allocate_page().unwrap();
+        assert_eq!(root_page_id, 1);
+
+        let header = IndexHeaderPage::new(root_page_id);
+        let root_leaf = LeafNodePage::empty();
+
+        pager
+            .write_page(header_page_id, &header.to_bytes())
+            .unwrap();
+
+        pager
+            .write_page(root_page_id, &root_leaf.to_bytes())
+            .unwrap();
+
+        drop(pager);
+
+        let mut reopened_pager = Pager::open(&path).unwrap();
+
+        let header_bytes = reopened_pager.read_page(header_page_id).unwrap();
+
+        let decoded_header = IndexHeaderPage::from_bytes(&header_bytes).unwrap();
+
+        assert_eq!(decoded_header.root_page_id, root_page_id);
+
+        let root_bytes = reopened_pager
+            .read_page(decoded_header.root_page_id)
+            .unwrap();
+
+        assert_eq!(root_bytes[NODE_TYPE_OFFSET], LEAF_NODE_TYPE);
+
+        let entry_count = u16::from_le_bytes(
+            root_bytes[ENTRY_COUNT_OFFSET..ENTRY_COUNT_OFFSET + size_of::<u16>()]
+                .try_into()
+                .unwrap(),
+        );
+        assert_eq!(entry_count, 0);
+
+        let next_leaf_page_id = PageId::from_le_bytes(
+            root_bytes[NEXT_LEAF_PAGE_ID_OFFSET..NEXT_LEAF_PAGE_ID_OFFSET + size_of::<PageId>()]
+                .try_into()
+                .unwrap(),
+        );
+        assert_eq!(next_leaf_page_id, NO_NEXT_LEAF_PAGE);
+    }
 }
