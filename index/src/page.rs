@@ -1,4 +1,5 @@
 use std::mem::size_of;
+use storage::heap_file::RecordId;
 use storage::{
     Error, Result,
     pager::{PAGE_SIZE, PageId},
@@ -64,6 +65,13 @@ impl IndexHeaderPage {
         );
         Ok(Self { root_page_id })
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LeafPageEntry {
+    key: Vec<u8>,
+    record_id: RecordId,
+    tombstone: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
